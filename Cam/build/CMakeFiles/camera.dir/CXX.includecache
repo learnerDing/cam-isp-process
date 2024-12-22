@@ -1,0 +1,42 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/dkernel/CamIspProcess/Cam/Cam.h
+iostream
+-
+fcntl.h
+-
+cstring
+-
+sys/ioctl.h
+-
+sys/mman.h
+-
+unistd.h
+-
+cerrno
+-
+vector
+-
+string
+-
+memory
+-
+
+/home/dkernel/CamIspProcess/Cam/Camtest.cpp
+Cam.h
+/home/dkernel/CamIspProcess/Cam/Cam.h
+memory
+-
+iostream
+-
+algorithm
+-
+string
+-
+

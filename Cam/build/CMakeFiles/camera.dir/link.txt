@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/camera.dir/Camtest.cpp.o CMakeFiles/camera.dir/v4l2cam.cpp.o CMakeFiles/camera.dir/Cam.cpp.o -o camera 

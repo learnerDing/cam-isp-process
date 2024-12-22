@@ -1,0 +1,3 @@
+/home/dkernel/CamIspProcess/Cam/build/CMakeFiles/rebuild_cache.dir
+/home/dkernel/CamIspProcess/Cam/build/CMakeFiles/camera.dir
+/home/dkernel/CamIspProcess/Cam/build/CMakeFiles/edit_cache.dir

@@ -1,4 +1,6 @@
-#include "stream.h"
+#include "Stream.h"
+
+
 
 // 构造函数
 Stream::Stream() : m_running(true) {}

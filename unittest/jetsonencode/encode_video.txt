@@ -1,0 +1,25 @@
+Opening in BLOCKING MODE 
+NvMMLiteOpen : Block : BlockType = 4 
+===== NVMEDIA: NVENC =====
+NvMMLiteBlockCreate : Block : BlockType = 4 
+875967048
+842091865
+H264: Profile = 77, Level = 51 
+Send frame   0
+NVMEDIA_ENC: bBlitMode is set to TRUE 
+Send frame   1
+Send frame   2
+Write packet   0 (size= 5823)
+Send frame   3
+Send frame   4
+Write packet   2 (size= 5123)
+Send frame   5
+Write packet   1 (size= 2407)
+Send frame   6
+Write packet   4 (size= 4991)
+Send frame   7
+Write packet   3 (size= 3114)
+Send frame   8
+Write packet   6 (size= 4385)
+Send frame   9
+Segmentation fault (core dumped)

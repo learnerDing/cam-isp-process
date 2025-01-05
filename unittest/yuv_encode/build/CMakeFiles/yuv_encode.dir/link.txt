@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/yuv_encode.dir/yuv_encode.c.o -o yuv_encode  -lavcodec -lavformat -lavutil -lswscale -lavdevice -lavfilter -lswresample -lm -lpthread 

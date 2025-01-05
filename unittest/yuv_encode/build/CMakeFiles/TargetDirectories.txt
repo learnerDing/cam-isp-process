@@ -1,0 +1,3 @@
+/home/dkernel/cam-isp-process/unittest/yuv_encode/build/CMakeFiles/rebuild_cache.dir
+/home/dkernel/cam-isp-process/unittest/yuv_encode/build/CMakeFiles/yuv_encode.dir
+/home/dkernel/cam-isp-process/unittest/yuv_encode/build/CMakeFiles/edit_cache.dir

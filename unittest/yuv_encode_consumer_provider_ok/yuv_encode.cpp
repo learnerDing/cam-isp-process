@@ -1,12 +1,17 @@
+
 #include "FrameQueue.h"
 #include "EncodeThread.h"
-#include <libavcodec/avcodec.h>
-#include <libavutil/opt.h>
-#include <libavutil/imgutils.h>
+
 #include <iostream>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
+#include<ctime>
+extern "C"{
+#include <libavcodec/avcodec.h>
+#include <libavutil/opt.h>
+#include <libavutil/imgutils.h>
+}
 
 int main(int argc, char **argv) {
     if (argc <= 4) {
@@ -21,14 +26,14 @@ int main(int argc, char **argv) {
     const int height = std::stoi(argv[5]);
 
     // 查找编码器
-    const AVCodec *codec = avcodec_find_encoder_by_name(codec_name.c_str());
+    const AVCodec* codec = avcodec_find_encoder_by_name(codec_name.c_str());
     if (!codec) {
         std::cerr << "Codec '" << codec_name << "' not found\n";
         return 1;
     }
 
     // 分配编码器上下文
-    std::unique_ptr<AVCodecContext, decltype(&avcodec_free_context)> c(avcodec_alloc_context3(codec), avcodec_free_context);
+    AVCodecContext* c = avcodec_alloc_context3(codec);
     if (!c) {
         std::cerr << "Could not allocate video codec context\n";
         return 1;
@@ -49,8 +54,9 @@ int main(int argc, char **argv) {
     }
 
     // 打开编码器
-    if (avcodec_open2(c.get(), codec, nullptr) < 0) {
+    if (avcodec_open2(c, codec, nullptr) < 0) {
         std::cerr << "Could not open codec\n";
+        avcodec_free_context(&c); // 释放编码器上下文
         return 1;
     }
 
@@ -58,6 +64,7 @@ int main(int argc, char **argv) {
     std::ofstream outfile(filename, std::ios::binary);
     if (!outfile) {
         std::cerr << "Could not open " << filename << "\n";
+        avcodec_free_context(&c); // 释放编码器上下文
         return 1;
     }
 
@@ -65,37 +72,44 @@ int main(int argc, char **argv) {
     std::ifstream yuv_file(yuv_filename, std::ios::binary);
     if (!yuv_file) {
         std::cerr << "Could not open " << yuv_filename << "\n";
+        avcodec_free_context(&c); // 释放编码器上下文
         return 1;
     }
 
-    // 创建帧队列和编码线程
-    FrameQueue frameQueue;
-    EncodeThread encodeThread(frameQueue, c.get(), outfile);
-
-    encodeThread.start();
-
     // 分配帧
-    std::unique_ptr<AVFrame, decltype(&av_frame_free)> frame(av_frame_alloc(), av_frame_free);
+    AVFrame* frame = av_frame_alloc();
     if (!frame) {
         std::cerr << "Could not allocate video frame\n";
+        avcodec_free_context(&c); // 释放编码器上下文
         return 1;
     }
     frame->format = c->pix_fmt;
     frame->width = c->width;
     frame->height = c->height;
 
-    if (av_frame_get_buffer(frame.get(), 8) < 0) {
+    // 分配帧缓冲区
+    if (av_frame_get_buffer(frame, 8) < 0) {
         std::cerr << "Could not allocate the video frame data\n";
+        av_frame_free(&frame); // 释放帧
+        avcodec_free_context(&c); // 释放编码器上下文
         return 1;
     }
+
+    // 创建帧队列和编码线程
+    FrameQueue frameQueue;
+    EncodeThread encodeThread(frameQueue, c, outfile);
+
+    encodeThread.start();
 
     // 编码 1500帧的视频
     for (int i = 0; i < 1500; i++) {
         std::fflush(stdout);
 
         // 确保帧数据可写
-        if (av_frame_make_writable(frame.get()) < 0) {
+        if (av_frame_make_writable(frame) < 0) {
             std::cerr << "Could not make frame writable\n";
+            av_frame_free(&frame); // 释放帧
+            avcodec_free_context(&c); // 释放编码器上下文
             return 1;
         }
 
@@ -107,16 +121,20 @@ int main(int argc, char **argv) {
         frame->pts = i;
 
         // 将帧添加到队列
-        frameQueue.addFrame(frame.get());
+        frameQueue.addFrame(frame);
     }
 
     // 停止帧队列并等待编码线程完成
     frameQueue.stop();
-    encodeThread.join();
+    encodeThread.join();//主进程等待encodeThread进程执行完再继续向下执行
 
     // 添加序列结束码
-    const uint8_t endcode[] = {0, 0, 1, 0xb7};
+    const uint8_t endcode[] = {0, 0, 1, 0xb7};//h264文件结束码
     outfile.write(reinterpret_cast<const char*>(endcode), sizeof(endcode));
+
+    // 释放资源
+    av_frame_free(&frame);
+    avcodec_free_context(&c);
 
     return 0;
 }

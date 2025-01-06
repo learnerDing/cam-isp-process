@@ -4,8 +4,9 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+extern "C" {
 #include <libavutil/frame.h>
-
+}
 class FrameQueue {
 public:
     FrameQueue();

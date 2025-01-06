@@ -1,11 +1,10 @@
 #include "EncodeThread.h"
 
-EncodeThread::EncodeThread(FrameQueue& frameQueue, AVCodecContext* enc_ctx, FILE* outfile)
+EncodeThread::EncodeThread(FrameQueue& frameQueue, AVCodecContext* enc_ctx, std::ofstream& outfile)
     : m_frameQueue(frameQueue), m_enc_ctx(enc_ctx), m_outfile(outfile) {
     m_pkt = av_packet_alloc();
     if (!m_pkt) {
-        fprintf(stderr, "Could not allocate AVPacket\n");
-        exit(1);
+       throw std::runtime_error("Could not allocate AVPacket");
     }
 }
 
@@ -33,8 +32,7 @@ void EncodeThread::encode(AVFrame* frame) {
 
     ret = avcodec_send_frame(m_enc_ctx, frame);
     if (ret < 0) {
-        fprintf(stderr, "Error sending a frame for encoding\n");
-        exit(1);
+                throw std::runtime_error("Error sending a frame for encoding"); 
     }
 
     while (ret >= 0) {
@@ -42,12 +40,11 @@ void EncodeThread::encode(AVFrame* frame) {
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
             return;
         else if (ret < 0) {
-            fprintf(stderr, "Error during encoding\n");
-            exit(1);
+          throw std::runtime_error("Error during encoding");
         }
 
         printf("Write packet %3"PRId64" (size=%5d)\n", m_pkt->pts, m_pkt->size);
-        fwrite(m_pkt->data, 1, m_pkt->size, m_outfile);
+        m_outfile.write(reinterpret_cast<const char*>(m_pkt->data), m_pkt->size);
         av_packet_unref(m_pkt);
     }
 }

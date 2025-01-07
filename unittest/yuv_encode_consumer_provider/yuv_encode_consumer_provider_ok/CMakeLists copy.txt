@@ -1,0 +1,56 @@
+cmake_minimum_required(VERSION 3.10)
+project(EncodeVideoExample)
+
+# 设置 C++ 标准
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 查找 FFmpeg 库
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswscale libavdevice libavfilter libswresample)
+
+# 添加源文件
+set(SOURCES
+    yuv_encode.cpp
+    FrameQueue.cpp
+    EncodeThread.cpp
+    Thread.cpp
+)
+
+# 添加可执行文件
+add_executable(yuv_encode ${SOURCES})
+
+
+# 包含 FFmpeg 头文件
+# target_include_directories(yuv_encode PRIVATE
+
+#     ${FFMPEG_INCLUDE_DIRS}/libavcodec/avcodec.h
+#     ${FFMPEG_INCLUDE_DIRS}/libavutil/opt.h
+#     ${FFMPEG_INCLUDE_DIRS}/libavutil/imgutils.h
+
+# )
+# 包含 FFmpeg 头文件
+# target_include_directories(yuv_encode PRIVATE
+#     /usr/local/include/libavcodec/
+# #     /usr/local/include/libavutil
+#     /usr/local/include/libavformat/
+#     /usr/local/include/libswscale/
+#     /usr/local/include/libavfilter/
+#     /usr/local/include/libswresample/
+# )
+# 使用 file(GLOB ...) 递归查找 FFmpeg 头文件路径
+# file(GLOB FFMPEG_INCLUDE_PATHS "/usr/local/include/libavcodec" "/usr/local/include/libsw*")
+# message("FFMPEG_INCLUDE_PATHS: ${FFMPEG_INCLUDE_PATHS}")
+# 包含 FFmpeg 头文件
+target_include_directories(yuv_encode PRIVATE ${FFMPEG_INCLUDE_DIRS})
+message(${FFMPEG_INCLUDE_DIRS})#打印信息：/usr/local/include
+
+# 链接 FFmpeg 库
+target_link_libraries(yuv_encode PRIVATE ${FFMPEG_LIBRARIES})
+message(${FFMPEG_LIBRARIES})
+
+# 添加数学库（如果需要）
+target_link_libraries(yuv_encode PRIVATE m)
+
+# 显式链接 pthread 库
+target_link_libraries(yuv_encode PRIVATE pthread)

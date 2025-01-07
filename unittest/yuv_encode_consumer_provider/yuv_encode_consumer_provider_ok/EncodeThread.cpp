@@ -1,6 +1,7 @@
+//EncodeThread.cpp
 #include "EncodeThread.h"
 
-EncodeThread::EncodeThread(FrameQueue& frameQueue, AVCodecContext* enc_ctx, std::ofstream& outfile)
+EncodeThread::EncodeThread(FrameQueue<AVFrame>& frameQueue, AVCodecContext* enc_ctx, std::ofstream& outfile)
     : m_frameQueue(frameQueue), m_enc_ctx(enc_ctx), m_outfile(outfile) {
     m_pkt = av_packet_alloc();
     if (!m_pkt) {

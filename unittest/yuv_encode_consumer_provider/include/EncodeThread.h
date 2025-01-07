@@ -2,10 +2,6 @@
 #define ENCODETHREAD_H
 
 #include "FrameQueue.h"
-//#include <thread>
-// #include <libavcodec/avcodec.h>
-// #include <libavutil/opt.h>
-// #include <libavutil/imgutils.h>
 #include "Thread.h"
 #include <fstream> // 添加这行
 extern "C" {
@@ -14,15 +10,16 @@ extern "C" {
 #include <libavutil/imgutils.h>
 #include <libavutil/error.h>
 }
+//template <typename T>//T=AVFrame
 class EncodeThread : public Thread {
 public:
-    EncodeThread(FrameQueue& frameQueue, AVCodecContext* enc_ctx, std::ofstream& outfile);
+    EncodeThread(FrameQueue<AVFrame>& frameQueue, AVCodecContext* enc_ctx, std::ofstream& outfile);
     ~EncodeThread();
 
     void run() override;
 
 private:
-    FrameQueue& m_frameQueue;
+    FrameQueue<AVFrame>& m_frameQueue;
     AVCodecContext* m_enc_ctx;
     std::ofstream& m_outfile;
     AVPacket* m_pkt;

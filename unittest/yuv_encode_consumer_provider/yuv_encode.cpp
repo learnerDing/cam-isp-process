@@ -1,4 +1,3 @@
-
 #include "FrameQueue.h"
 #include "EncodeThread.h"
 
@@ -6,14 +5,15 @@
 #include <fstream>
 #include <memory>
 #include <stdexcept>
-#include<ctime>
-extern "C"{
+#include <ctime>
+
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
 #include <libavutil/imgutils.h>
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     if (argc <= 4) {
         std::cerr << "Usage: " << argv[0] << " <output file> <codec name> <yuv file> <width> <height>\n";
         return 1;
@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
     frame->format = c->pix_fmt;
     frame->width = c->width;
     frame->height = c->height;
-
+    std::cout<<"frame->format = "<<frame->format<<"frame->height="<<frame->height<<"\n";
     // 分配帧缓冲区
     if (av_frame_get_buffer(frame, 8) < 0) {
         std::cerr << "Could not allocate the video frame data\n";
@@ -96,16 +96,18 @@ int main(int argc, char **argv) {
     }
 
     // 创建帧队列和编码线程
-    FrameQueue frameQueue;
+    FrameQueue<AVFrame> frameQueue;
     EncodeThread encodeThread(frameQueue, c, outfile);
 
     encodeThread.start();
 
-    // 编码 1500帧的视频
+    // 编码 1500 帧的视频
     for (int i = 0; i < 1500; i++) {
         std::fflush(stdout);
 
         // 确保帧数据可写
+        /*Ensure that the frame data is writable, avoiding data copy if possible.
+        Do nothing if the frame is writable, allocate new buffers and copy the data if it is not*/
         if (av_frame_make_writable(frame) < 0) {
             std::cerr << "Could not make frame writable\n";
             av_frame_free(&frame); // 释放帧
@@ -126,10 +128,10 @@ int main(int argc, char **argv) {
 
     // 停止帧队列并等待编码线程完成
     frameQueue.stop();
-    encodeThread.join();//主进程等待encodeThread进程执行完再继续向下执行
+    encodeThread.join();
 
     // 添加序列结束码
-    const uint8_t endcode[] = {0, 0, 1, 0xb7};//h264文件结束码
+    const uint8_t endcode[] = {0, 0, 1, 0xb7}; // h264 文件结束码
     outfile.write(reinterpret_cast<const char*>(endcode), sizeof(endcode));
 
     // 释放资源

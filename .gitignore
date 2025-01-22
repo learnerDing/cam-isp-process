@@ -4,3 +4,6 @@
 *.h264
 *.yuv
 *.mp4
+*.a
+*.so
+utils/simpleocv

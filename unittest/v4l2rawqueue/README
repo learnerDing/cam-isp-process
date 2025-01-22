@@ -1,0 +1,22 @@
+单元测试：v4l2采集raw格式图像放入FrameQueue中，
+提供cam sensormode的选择接口
+自动识别图像像素和帧率
+将队列里面的图像存成本地一张一张图像。
+单元测试结构
+|-v4l2rawqueue
+    |-include
+        |-CamThread.h
+        |-FrameQueue.h
+        |-Thread.h
+    |-src
+        |-Cam
+            |-Cam.cpp
+            |-Cam.h
+            |-CamThread.cpp
+            |-v4l2cam.cpp
+            |-v4l2cam.h
+    |-utils
+        |-FrameQueue.cpp
+        |-Thread.cpp
+    |-CMakeLists.txt
+    |-main.cpp

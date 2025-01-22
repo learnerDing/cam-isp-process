@@ -9,9 +9,8 @@ int main() {
     const char* devicePath = "/dev/video0";
     unsigned int size = 0;
     // 通过工厂函数创建相机实例
-    //std::cout<<"ok3"<<std::endl;
     Cam* camera = Cam::createCamera(devicePath);
-    //std::cout<<"ok4"<<std::endl;
+
     if (!camera) {
         std::cerr << "Failed to create camera.\n";
         return EXIT_FAILURE;

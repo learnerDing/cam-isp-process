@@ -3,4 +3,4 @@
 #include "Tensor.h"
 
 template<typename T>
-void launch_rgb2yuv(Tensor* d_rgb, Tensor* d_yuv);
+void launch_rgb2yuv(Tensor* d_rgb, Tensor* d_yuv,int rows, int cols);

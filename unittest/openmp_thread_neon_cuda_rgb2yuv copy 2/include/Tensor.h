@@ -1,9 +1,10 @@
+#ifndef _TENSOR_H
+#define _TENSOR_H
 #include <vector>
 #include <cassert>
 #include <opencv2/core.hpp>
 #include <cuda_runtime.h>
-#ifndef _TENSOR_H
-#define _TENSOR_H
+
 enum class DeviceType { CPU, GPU };
 enum class DataType { UINT8, FLOAT32 };
 #define USE_CUDA

@@ -1,26 +1,34 @@
-// src/rgb2yuvpipeline.cpp
+// this is src/rgb2yuvpipeline.cpp
 #include "rgb2yuvpipeline.h"
 #include "rgb2yuv.cuh"
 
-RGB2YUVPipeline::RGB2YUVPipeline(Tensor& InTensor_cpu,Tensor& OutTensor_cpu ,int width, int height) 
+RGB2YUVPipeline::RGB2YUVPipeline(Tensor& InTensor_cpu, Tensor& OutTensor_cpu, 
+                                int width, int height) 
     : width_(width), height_(height) {
-    // 分配GPU内存 (CHW格式)
-    d_rgb_ = &(InTensor_cpu.to(DeviceType::GPU));
-    d_yuv_ = &(OutTensor_cpu.to(DeviceType::GPU));
+    // 输入检查
+    assert(InTensor_cpu.device() == DeviceType::CPU);
+    
+    // 创建GPU Tensor
+    rgb_tensor_gpu_ = InTensor_cpu.cputogpu();
+    yuv_tensor_gpu_ = Tensor(InTensor_cpu.shape(), DataType::FLOAT32, DeviceType::GPU);
+    
+    // 保存引用
+    rgb_tensor_cpu = InTensor_cpu;
+    yuv_tensor_cpu = OutTensor_cpu;
 }
 
 RGB2YUVPipeline::~RGB2YUVPipeline() {
-    delete d_rgb_;
-    delete d_yuv_;
+    delete &rgb_tensor_gpu_;
+    delete &yuv_tensor_gpu_;
 }
 
 Tensor RGB2YUVPipeline::process() {
-    // 数据传输 CPU->GPU
-    //Tensor rgb_gpu = rgb_cpu.to(DeviceType::GPU);
-    
     // 执行CUDA核函数
-    launch_rgb2yuv<float>(d_rgb_, d_yuv_, width_, height_);
+    launch_rgb2yuv<float>(
+        &rgb_tensor_gpu_,&yuv_tensor_gpu_,
+        width_, height_
+    );
     
-    // 结果回传 GPU->CPU
-    return std::move(d_yuv_->to(DeviceType::CPU));
-} 
+    // 返回CPU Tensor
+    return yuv_tensor_gpu_.gputocpu();
+}

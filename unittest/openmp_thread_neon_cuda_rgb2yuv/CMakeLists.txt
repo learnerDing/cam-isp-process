@@ -16,11 +16,9 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}  -Xcompiler -Wall")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}  \
                       -gencode=arch=compute_70,code=\\\"sm_70,compute_70\\\" \
                       -gencode=arch=compute_75,code=\\\"sm_75,compute_75\\\" \
-                      -gencode=arch=compute_80,code=\\\"sm_80,compute_80\\\" \
-                      -gencode=arch=compute_86,code=\\\"sm_86,compute_86\\\" \
                       ")
-set(CMAKE_CUDA_ARCHITECTURES 70 75 80 86)
-message("-- Assign GPU architecture (sm=70 75 80 86)")
+set(CMAKE_CUDA_ARCHITECTURES 70 75 )
+message("-- Assign GPU architecture (sm=70 75)")
 
 # 设置调试模式标志
 set(CMAKE_C_FLAGS_DEBUG    "${CMAKE_C_FLAGS_DEBUG}    -Wall -O0")
@@ -38,11 +36,12 @@ add_executable(${PROJECT_NAME}
     main.cpp
     src/rgb2yuv.cu
     src/rgb2yuvpipeline.cpp
+    src/Tensor.cpp
 )
 
 # 包含头文件目录
 target_include_directories(${PROJECT_NAME} PRIVATE include ${OpenCV_INCLUDE_DIRS} ${CUDA_PATH}/include)
-
+include_directories(${CMAKE_SOURCE_DIR}/include)
 # 链接库
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CUDA_LIBRARIES} ${OpenCV_LIBRARIES})
 

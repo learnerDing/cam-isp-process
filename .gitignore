@@ -6,4 +6,4 @@
 *.mp4
 *.a
 *.so
-utils/simpleocv
+simpleocv

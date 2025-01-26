@@ -1,0 +1,15 @@
+openmp_thread_neon_cuda_rgb2yuv单元测试程序
+使用openmp多线程neon cuda 三种方式尝试去加速rgb2yuv程序，查看性能指标
+|-openmp_thread_neon_cuda_rgb2yuv
+    |-include
+        |-rgb2yuv.cuh
+        |-rgb2yuvpipeline.h
+    |-src
+        |-rgb2yuv.cu
+        |-rgb2yuvpipeline.cpp
+    |-main.cpp
+    |-CMakeLists.txt
+main.cpp需要：1、先写出rgb转yuv的cpu 程序。2、定义好宏定义的开关，可以自己选择打开openmp，neon,cuda加速来替换
+naive的cpu程序。3、使用cv的Mat作为图像的数据结构，如果Mat作为gpu上面的数据，需要注意哪些东西？
+4、这只是一个测试程序，我只是想知道在我的jetson开发板上面，这三种方式进行图像数据变化速度
+，所以可以直接使用软件生成几张图像即可。5、在统计好每种方式进行数据处理的实际耗时。

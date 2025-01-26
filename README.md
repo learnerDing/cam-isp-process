@@ -1,37 +1,25 @@
 # CamIspProcess
 
 #### 介绍
-tobedone
 
+开源流媒体处理框架
 #### 软件架构
-软件架构说明
+cam-isp-process
+1、使用标准v4l2接口采集图像，原始图像支持raw8或者raw10格式，放入缓冲区队列1中。
+2、缓冲区队列FrameQueue设计，使用模板支持队列中的frame为cv::Mat和ffmpeg中的AVFrame，定义出队入队函数使用深拷贝保证线程安全。
+3、isp pipeline设计，采集出的v4l2图像放入缓冲区队列1后（深拷贝），将图像经过解拜耳、自动白平衡、CCM、Gamma处理后送入缓冲区队列2。isp过程可支持openmp,neon,cuda加速。
+4、如果开启cuda加速进行isp，则从缓冲区队列1取出cv::Mat类型（深拷贝）转化为Tensor类型，经过解拜耳、自动白平衡、CCM、Gamma后转化为cv::Mat送入缓冲区队列2。
+5、以上v4l2+isp pipeline作为生产者，可以对接以下消费者。
+6、消费者1：ffmpeg编码线程，缓冲区队列2出队图像经过rgb转yuv后送入编码线程，将图像帧编成h264视频存放在本地。（支持jetson的nvmpi硬件编码器）
+7、消费者2：渲染线程，缓冲区队列2出队图像经过rgb转yuv后送入渲染线程，将yuv图像通过x服务器和opengl渲染到屏幕输出。
+8、消费者3：推理线程，缓冲区队列2出队图像考虑使用ncnn(TensorRT)进行推理。
 
 
 #### 安装教程
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
+tobedone
 #### 使用说明
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
+tobedone
 
 #### 参与贡献
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)

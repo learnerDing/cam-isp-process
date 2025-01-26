@@ -8,7 +8,7 @@
 #include "FrameQueue.h"
 #include "Cam.h"
 #include "Thread.h"  // 包含自定义的 Thread 头文件
-
+#include <omp.h>
 class CamThread : public Thread
 {
 public:

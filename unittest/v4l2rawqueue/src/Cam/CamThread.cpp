@@ -2,7 +2,8 @@
 #include "CamThread.h"
 #include <iostream>
 #include <stdexcept>
-#include <opencv2/opencv.hpp>
+
+
 CamThread::CamThread(FrameQueue<std::shared_ptr<cv::Mat>>& frameQueue, const std::string& devicePath, int width, int height, Cam::Camtype camtype)
     : m_frameQueue(frameQueue), m_devicePath(devicePath), m_width(width), m_height(height), Camtype(Cam::Camtype::V4l2), m_camera(nullptr) {
     // 创建摄像头实例
@@ -19,6 +20,7 @@ CamThread::~CamThread() {
 }
 // 将 RAW10 格式转换为 RAW8 格式的函数
 void raw10_to_raw8(const uint16_t* raw10, uint8_t* raw8, int width, int height) {
+    
     for (int i = 0; i < width * height; i++) {
         raw8[i] = raw10[i] >> 2;  // 将 10 位数据右移 2 位，转换为 8 位
     }

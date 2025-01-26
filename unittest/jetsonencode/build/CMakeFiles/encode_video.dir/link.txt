@@ -1,1 +1,0 @@
-/usr/bin/cc CMakeFiles/encode_video.dir/encode_video.c.o -o encode_video  -lavcodec -lavformat -lavutil -lswscale -lavdevice -lavfilter -lswresample -lm -lpthread 

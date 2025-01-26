@@ -1,3 +1,0 @@
-/home/dkernel/cam-isp-process/unittest/jetsonencode/build/CMakeFiles/rebuild_cache.dir
-/home/dkernel/cam-isp-process/unittest/jetsonencode/build/CMakeFiles/encode_video.dir
-/home/dkernel/cam-isp-process/unittest/jetsonencode/build/CMakeFiles/edit_cache.dir

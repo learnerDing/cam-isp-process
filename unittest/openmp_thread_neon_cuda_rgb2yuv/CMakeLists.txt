@@ -33,7 +33,7 @@ message(STATUS "OpenCV libraries: ${OpenCV_LIBRARIES}")
 
 # 添加可执行目标
 add_executable(${PROJECT_NAME}
-    main.cpp
+    main3.cpp
     src/rgb2yuv.cu
     src/rgb2yuvpipeline.cpp
     src/Tensor.cpp

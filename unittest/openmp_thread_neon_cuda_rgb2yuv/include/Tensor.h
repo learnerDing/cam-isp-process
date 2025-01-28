@@ -1,10 +1,13 @@
+//This is Tensor.h
 #ifndef _TENSOR_H
 #define _TENSOR_H
 #include <vector>
 #include <cassert>
 #include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>  
 #include <cuda_runtime.h>
-
+#define DBG_Tensor
 enum class DeviceType { CPU, GPU };
 enum class DataType { UINT8, FLOAT32 };
 #define USE_CUDA
@@ -16,6 +19,9 @@ private:
     std::vector<int> shape_;
 
 public:
+    int width_ = 1920;//图像宽度，和数据形状无关
+    int height_ = 1080;//图像高度，和数据形状无关
+
     // 删除拷贝构造和拷贝赋值
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
@@ -33,9 +39,14 @@ public:
     // 根据形状和数据类型构造
     Tensor(const std::vector<int>& shape, DataType dtype, DeviceType device);
 
-    ~Tensor() { release(); }
+    ~Tensor() { 
+#ifdef DBG_Tensor
+        printf("~Tensor() ptr=%p\n", data_ptr_);
+#endif
+        release(); }
 
     // 设备间传输
+    //类方法后面加上const表示函数内部不能修改Tensor的成员
     Tensor to(DeviceType target) const;
     Tensor cputogpu() const;
     Tensor gputocpu() const;
@@ -53,6 +64,14 @@ public:
     void* data() { return data_ptr_; }
     const void* data() const { return data_ptr_; }
 
+    size_t bytes()const{
+        size_t elements = 1;
+        for (int dim : shape_) elements *= dim;
+        return elements * (dtype_ == DataType::FLOAT32 ? sizeof(float) : sizeof(uint8_t));
+    }
+    //打印机制
+    void print(const std::string& name = "", size_t max_elements = 10) const;
+    void print_shape(const std::string& name = "") const;
 private:
     void release() {
         if (data_ptr_) {
@@ -66,11 +85,29 @@ private:
             data_ptr_ = nullptr;
         }
     }
-    size_t bytes() const {
-        size_t elements = 1;
-        for (int dim : shape_) elements *= dim;
-        return elements * (dtype_ == DataType::FLOAT32 ? sizeof(float) : sizeof(uint8_t));
-    }
+/*打印机制
+使用示例
+// 创建3x2x2的浮点Tensor
+Tensor tensor({3, 2, 2}, DataType::FLOAT32, DeviceType::CPU);
+float* data = static_cast<float*>(tensor.data());
+std::iota(data, data + 12, 1.0f); // 填充1-12
+
+tensor.print("demo_tensor");
+// 输出：
+// Tensor 'demo_tensor' shape: [3, 2, 2], device: CPU, dtype: float32
+// [
+//     [
+//         [    1.0000,     2.0000, ...,     3.0000,     4.0000 ]
+//         [    5.0000,     6.0000, ...,     7.0000,     8.0000 ]
+//     ],
+//     [
+//         [    9.0000,    10.0000, ...,    11.0000,    12.0000 ]
+//         ...
+//     ]
+// ]
+*/
+    template<typename T>
+    void print_impl(const T* data, size_t max_elements) const;
     void allocate_memory(size_t bytes);
 };
 

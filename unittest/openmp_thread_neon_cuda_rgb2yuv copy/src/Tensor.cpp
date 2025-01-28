@@ -1,7 +1,6 @@
 //This is Tensor.cpp
 #include "../include/Tensor.h"
-#include <iomanip>
-#include <iostream>
+
 Tensor::Tensor(Tensor&& other) noexcept 
     : data_ptr_(other.data_ptr_), device_(other.device_),
       dtype_(other.dtype_), shape_(std::move(other.shape_)) {
@@ -210,119 +209,5 @@ void Tensor::allocate_memory(size_t bytes) {
 #else
         assert(false && "CUDA support not enabled");
 #endif
-    }
-}
-
-//打印机制
-void Tensor::print_shape(const std::string& name) const {
-    std::cout << "Tensor";
-    if (!name.empty()) std::cout << " '" << name << "'";
-    std::cout << " shape: [";
-    for (size_t i = 0; i < shape_.size(); ++i) {
-        if (i > 0) std::cout << ", ";
-        std::cout << shape_[i];
-    }
-    std::cout << "], device: " << (device_ == DeviceType::CPU ? "CPU" : "GPU")
-              << ", dtype: " << (dtype_ == DataType::FLOAT32 ? "float32" : "uint8")
-              << std::endl;
-}
-
-void Tensor::print(const std::string& name, size_t max_elements) const {
-    print_shape(name);
-
-    // 处理设备
-    Tensor cpu_tensor;
-    const Tensor* print_tensor = this;
-    if (device_ != DeviceType::CPU) {
-        cpu_tensor = this->to(DeviceType::CPU);
-        print_tensor = &cpu_tensor;
-    }
-
-    // 空Tensor检查
-    if (!print_tensor->data_ptr_) {
-        std::cout << "Tensor data is empty!" << std::endl;
-        return;
-    }
-
-    // 根据数据类型调用实现
-    if (dtype_ == DataType::FLOAT32) {
-        print_impl<float>(static_cast<const float*>(print_tensor->data()), max_elements);
-    } else {
-        print_impl<uint8_t>(static_cast<const uint8_t*>(print_tensor->data()), max_elements);
-    }
-}
-
-template<typename T>
-void Tensor::print_impl(const T* data, size_t max_elements) const {
-    const size_t total_elements = shape_.empty() ? 0 : 1;
-    for (int dim : shape_) total_elements *= dim;
-
-    std::cout << "[" << std::endl;
-    
-    // 递归打印多维数据的辅助函数
-    std::function<void(const T*, size_t, size_t, std::vector<size_t>)> print_recursive;
-    print_recursive = [&](const T* ptr, size_t dim_idx, size_t indent, std::vector<size_t> indices) {
-        std::string indent_str(indent * 4, ' ');
-        
-        if (dim_idx == shape_.size() - 1) { // 最后一维
-            std::cout << indent_str << "[ ";
-            size_t elements_to_print = std::min<size_t>(shape_[dim_idx], 8);
-            bool truncated = false;
-            
-            for (size_t i = 0; i < shape_[dim_idx]; ++i) {
-                if (i >= 4 && i < shape_[dim_idx] - 4) {
-                    if (!truncated) {
-                        std::cout << "..., ";
-                        truncated = true;
-                    }
-                    continue;
-                }
-                
-                if (std::is_same<T, float>::value) {
-                    std::cout << std::fixed << std::setw(9) << std::setprecision(4) << ptr[i];
-                } else {
-                    std::cout << std::setw(4) << static_cast<int>(ptr[i]);
-                }
-                
-                if (i < shape_[dim_idx] - 1) std::cout << ", ";
-            }
-            std::cout << " ]" << std::endl;
-        } else { // 中间维度
-            size_t elements_to_print = std::min<size_t>(shape_[dim_idx], 3);
-            bool truncated = shape_[dim_idx] > 6;
-            
-            for (size_t i = 0; i < shape_[dim_idx]; ++i) {
-                if (i >= 3 && i < shape_[dim_idx] - 3) {
-                    if (!truncated) {
-                        std::cout << indent_str << "... (shape[" << dim_idx << "] = " 
-                                  << shape_[dim_idx] << " elements)" << std::endl;
-                        truncated = true;
-                    }
-                    continue;
-                }
-                
-                std::cout << indent_str << "[";
-                if (dim_idx < shape_.size() - 1) std::cout << std::endl;
-                
-                std::vector<size_t> new_indices = indices;
-                new_indices.push_back(i);
-                print_recursive(ptr + i * shape_[dim_idx + 1], dim_idx + 1, indent + 1, new_indices);
-                
-                if (dim_idx < shape_.size() - 1) {
-                    std::cout << indent_str << "]";
-                    if (i < shape_[dim_idx] - 1) std::cout << ",";
-                    std::cout << std::endl;
-                }
-            }
-        }
-    };
-    
-    print_recursive(data, 0, 0, {});
-    std::cout << "]" << std::endl;
-    
-    // 显示统计信息
-    if (total_elements > max_elements) {
-        std::cout << "... (showing first " << max_elements 
-                  << " of " << total_elements << " elements)" << std::endl;
     }
 }

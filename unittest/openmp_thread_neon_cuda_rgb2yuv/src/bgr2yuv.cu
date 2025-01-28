@@ -1,9 +1,9 @@
-// src/rgb2yuv.cu
-#include "rgb2yuv.cuh"
+// src/bgr2yuv.cu
+#include "bgr2yuv.cuh"
 #include <cuda_runtime.h>
 //不需要使用模板，因为一般的嵌入式开发板只支持fp32
 // 计算Y分量的核函数
-__global__ void rgb2yuv_y_kernel(const float* __restrict__ rgb,
+__global__ void bgr2yuv_y_kernel(const float* __restrict__ bgr,
                                  float* __restrict__ y,
                                  int width, int height) {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -15,15 +15,15 @@ __global__ void rgb2yuv_y_kernel(const float* __restrict__ rgb,
     const int G = width * height + y_coord * width + x;
     const int B = 2 * width * height + y_coord * width + x;
 
-    const float fr = rgb[R];
-    const float fg = rgb[G];
-    const float fb = rgb[B];
+    const float fr = bgr[R];
+    const float fg = bgr[G];
+    const float fb = bgr[B];
 
     y[y_coord * width + x] = 0.299f * fr + 0.587f * fg + 0.114f * fb;
 }
 
 // 计算UV分量的核函数（下采样到420）
-__global__ void rgb2yuv_uv_kernel(const float* __restrict__ rgb,
+__global__ void bgr2yuv_uv_kernel(const float* __restrict__ bgr,
                                   float* __restrict__ yuv,
                                   int width, int height) {
     const int u_x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -53,9 +53,9 @@ __global__ void rgb2yuv_uv_kernel(const float* __restrict__ rgb,
             const int G = width * height + y * width + x;
             const int B = 2 * width * height + y * width + x;
 
-            const float fr = rgb[R];
-            const float fg = rgb[G];
-            const float fb = rgb[B];
+            const float fr = bgr[R];
+            const float fg = bgr[G];
+            const float fb = bgr[B];
 
             // 计算U和V值
             u_sum += -0.169f * fr - 0.331f * fg + 0.5f * fb + 128;
@@ -78,22 +78,22 @@ __global__ void rgb2yuv_uv_kernel(const float* __restrict__ rgb,
     yuv[v_index] = v_avg;
 }
 
-void launch_rgb2yuv(Tensor* d_rgb, Tensor* d_yuv, int width, int height) {
+void launch_bgr2yuv(Tensor* d_bgr, Tensor* d_yuv, int width, int height) {
     // 新增类型和设备断言
-    assert(d_rgb->dtype() == DataType::FLOAT32 && "Input tensor must be FLOAT32");
+    assert(d_bgr->dtype() == DataType::FLOAT32 && "Input tensor must be FLOAT32");
     assert(d_yuv->dtype() == DataType::FLOAT32 && "Output tensor must be FLOAT32");
-    assert(d_rgb->device() == DeviceType::GPU && "Input tensor must be on GPU");
+    assert(d_bgr->device() == DeviceType::GPU && "Input tensor must be on GPU");
     assert(d_yuv->device() == DeviceType::GPU && "Output tensor must be on GPU");
 
     // 显式获取浮点指针
-    float* rgb_data = static_cast<float*>(d_rgb->data());
+    float* bgr_data = static_cast<float*>(d_bgr->data());
     float* yuv_data = static_cast<float*>(d_yuv->data());
 
     // 处理Y分量
     dim3 block(32, 8);
     dim3 grid((width + block.x - 1)/block.x, 
              (height + block.y - 1)/block.y);
-    rgb2yuv_y_kernel<<<grid, block>>>(rgb_data, yuv_data, width, height);
+    bgr2yuv_y_kernel<<<grid, block>>>(bgr_data, yuv_data, width, height);
 
     // 处理UV分量
     const int uv_width = width / 2;
@@ -101,7 +101,7 @@ void launch_rgb2yuv(Tensor* d_rgb, Tensor* d_yuv, int width, int height) {
     dim3 uv_block(16, 8);
     dim3 uv_grid((uv_width + uv_block.x - 1)/uv_block.x,
                 (uv_height + uv_block.y - 1)/uv_block.y);
-    rgb2yuv_uv_kernel<<<uv_grid, uv_block>>>(rgb_data, yuv_data, width, height);
+    bgr2yuv_uv_kernel<<<uv_grid, uv_block>>>(bgr_data, yuv_data, width, height);
 
     cudaDeviceSynchronize();
 }

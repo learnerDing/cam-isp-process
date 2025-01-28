@@ -1,8 +1,8 @@
-// this is src/rgb2yuvpipeline.cpp
-#include "rgb2yuvpipeline.h"
-#include "rgb2yuv.cuh"
-#define DBG_RGB2YUV
-RGB2YUVPipeline::RGB2YUVPipeline(Tensor&& InTensor_cpu, 
+// this is src/bgr2yuvpipeline.cpp
+#include "bgr2yuvpipeline.h"
+#include "bgr2yuv.cuh"
+#define DBG_BGR2YUV
+BGR2YUVPipeline::BGR2YUVPipeline(Tensor&& InTensor_cpu, 
                                 int width, int height) 
     : width_(width), height_(height) {
     // 输入检查
@@ -11,11 +11,11 @@ RGB2YUVPipeline::RGB2YUVPipeline(Tensor&& InTensor_cpu,
     if (width%2 !=0 || height%2 !=0) {
         throw std::invalid_argument("Width/height must be even for YUV420P");
     }
-    #ifdef DBG_RGB2YUV
+    #ifdef DBG_BGR2YUV
         printf("Pipeline CTOR: input tensor ptr=%p\n", InTensor_cpu.data());
     #endif
     // 创建GPU Tensor
-    rgb_tensor_gpu_ = InTensor_cpu.cputogpu();
+    bgr_tensor_gpu_ = InTensor_cpu.cputogpu();
     //yuv420p分配空间需要额外处理
     // 修改YUV420P的Tensor形状
     const int y_size = width * height;
@@ -26,16 +26,16 @@ RGB2YUVPipeline::RGB2YUVPipeline(Tensor&& InTensor_cpu,
 
 }
 
-RGB2YUVPipeline::~RGB2YUVPipeline() {
-    #ifdef DBG_RGB2YUV
-        printf("~RGB2YUVPipeline()\n");
+BGR2YUVPipeline::~BGR2YUVPipeline() {
+    #ifdef DBG_BGR2YUV
+        printf("~BGR2YUVPipeline()\n");
     #endif
 }
 
-Tensor RGB2YUVPipeline::process() {
+Tensor BGR2YUVPipeline::process() {
     // 执行CUDA核函数
-    launch_rgb2yuv(
-        &rgb_tensor_gpu_,&yuv_tensor_gpu_,
+    launch_bgr2yuv(
+        &bgr_tensor_gpu_,&yuv_tensor_gpu_,
         width_, height_
     );
     

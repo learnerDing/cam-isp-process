@@ -61,8 +61,8 @@ public:
     DeviceType device() const { return device_; }
     DataType dtype() const { return dtype_; }
     const std::vector<int>& shape() const { return shape_; }
-    void* data() { return data_ptr_; }
-    // const void* data() const { return data_ptr_; }
+    void* data() const  { return data_ptr_; }
+    // void* data() const { return data_ptr_; }
 
     size_t bytes()const{
         size_t elements = 1;
@@ -73,10 +73,6 @@ public:
     /*打印机制
 使用示例
 // 创建3x2x2的浮点Tensor
-Tensor tensor({3, 2, 2}, DataType::FLOAT32, DeviceType::CPU);
-float* data = static_cast<float*>(tensor.data());
-std::iota(data, data + 12, 1.0f); // 填充1-12
-
 tensor.print("demo_tensor");
 // 输出：
 // Tensor 'demo_tensor' shape: [3, 2, 2], device: CPU, dtype: float32
@@ -90,7 +86,13 @@ tensor.print("demo_tensor");
 //         ...
 //     ]
 // ]
+// 打印第2个通道，第3行，前8个元素
+tensor.print(2, 3, 8, "demo_tensor");
 */
+    // 针对CHW排列的特殊打印
+    //行打印
+    void print(int channel, int row, int elements = 10, const std::string& name = "") const;
+    //打印多元素
     void print(const std::string& name = "", size_t max_elements = 10) const;
     void print_shape(const std::string& name = "") const;
 private:

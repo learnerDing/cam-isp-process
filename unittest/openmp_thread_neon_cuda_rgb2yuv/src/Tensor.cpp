@@ -158,12 +158,12 @@ cv::Mat Tensor::toMat(float scale) const {
         v_dst[i] = static_cast<uchar>(v_plane[i] * scale);
     }
 
-    // 转换为RGB
-    cv::Mat rgb_mat;
-    cv::cvtColor(yuv420p_mat, rgb_mat, cv::COLOR_YUV2RGB_I420);
-    // cv::namedWindow("RGB Image", cv::WINDOW_NORMAL);
-    // cv::imshow("RGB Image", rgb_mat);
-    return rgb_mat; // 已经是CV_8UC3类型，无需额外转换
+    // 转换为BGR
+    cv::Mat BGR_mat;
+    cv::cvtColor(yuv420p_mat, BGR_mat, cv::COLOR_YUV2BGR_I420);
+    // cv::namedWindow("BGR Image", cv::WINDOW_NORMAL);
+    // cv::imshow("BGR Image",BGR_mat);
+    return BGR_mat; // 已经是CV_8UC3类型，无需额外转换
 } 
     else
     {//常规数据排列方式bgr各占4个字节
@@ -251,10 +251,51 @@ void Tensor::print(const std::string& name, size_t max_elements) const {
         print_impl<uint8_t>(static_cast<const uint8_t*>(print_tensor->data()), max_elements);
     }
 }
+void Tensor::print(int channel, int row, int elements, const std::string& name) const {
+    print_shape(name);  // 复用形状打印
+    
+    // 设备检查与数据转移
+    Tensor cpu_tensor;
+    const Tensor* print_tensor = this;
+    if (device_ != DeviceType::CPU) {
+        cpu_tensor = this->to(DeviceType::CPU);
+        print_tensor = &cpu_tensor;
+    }
+
+    // 参数有效性验证
+    const auto& s = shape_;
+    assert(s.size() == 3 && "Need CHW shape for this print method");
+    printf("channel = %d,s[0] = %d\n",channel,s[0]);
+    assert(channel >= 0 && channel < s[0] && "Channel index out of range");
+    assert(row >= 0 && row < s[1] && "Row index out of range");
+    elements = std::min(elements, s[2]);  // 不能超过实际列数
+
+    // 数据指针定位
+    const size_t offset = channel * s[1] * s[2] + row * s[2];
+    
+    // 统一格式化输出
+    std::cout << "Printing CHW tensor data [C=" << channel 
+              << ", H=" << row << ", W=0~" << (elements-1) << "]:\n";
+    
+    if (dtype_ == DataType::FLOAT32) {
+        const float* data = static_cast<const float*>(print_tensor->data()) + offset;
+        for (int i = 0; i < elements; ++i) {
+            std::cout << std::fixed << std::setprecision(4) 
+                      << std::setw(8) << data[i] << " ";
+        }
+    } else {
+        const uint8_t* data = static_cast<const uint8_t*>(print_tensor->data()) + offset;
+        for (int i = 0; i < elements; ++i) {
+            std::cout << std::setw(4) << static_cast<int>(data[i]) << " ";
+        }
+    }
+    std::cout << "\n..." << (s[2] > elements ? " (truncated)" : "") 
+              << " Total elements in this row: " << s[2] << "\n\n";
+}
 
 template<typename T>
 void Tensor::print_impl(const T* data, size_t max_elements) const {
-    const size_t total_elements = shape_.empty() ? 0 : 1;
+    size_t total_elements = shape_.empty() ? 0 : 1;
     for (int dim : shape_) total_elements *= dim;
 
     std::cout << "[" << std::endl;

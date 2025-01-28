@@ -11,3 +11,4 @@
 *.rgb
 simpleocv
 .VSCodeCounter/
+*report/

@@ -20,6 +20,7 @@ void test_yuv_to_rgb() {
     // 创建Tensor
     Tensor test_tensor({1, 1, y_size + 2*uv_size}, DataType::FLOAT32, DeviceType::CPU);
     memcpy(test_tensor.data(), yuv_data.data(), test_tensor.bytes());
+    test_tensor.print("test_tensor");
     test_tensor.width_ = width;
     test_tensor.height_ = height;
     

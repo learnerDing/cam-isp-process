@@ -62,30 +62,15 @@ public:
     DataType dtype() const { return dtype_; }
     const std::vector<int>& shape() const { return shape_; }
     void* data() { return data_ptr_; }
-    const void* data() const { return data_ptr_; }
+    // const void* data() const { return data_ptr_; }
 
     size_t bytes()const{
         size_t elements = 1;
         for (int dim : shape_) elements *= dim;
         return elements * (dtype_ == DataType::FLOAT32 ? sizeof(float) : sizeof(uint8_t));
     }
-    //打印机制
-    void print(const std::string& name = "", size_t max_elements = 10) const;
-    void print_shape(const std::string& name = "") const;
-private:
-    void release() {
-        if (data_ptr_) {
-            if (device_ == DeviceType::CPU) {
-                delete[] static_cast<uint8_t*>(data_ptr_);
-            } else {
-#ifdef USE_CUDA
-                cudaFree(data_ptr_);
-#endif
-            }
-            data_ptr_ = nullptr;
-        }
-    }
-/*打印机制
+
+    /*打印机制
 使用示例
 // 创建3x2x2的浮点Tensor
 Tensor tensor({3, 2, 2}, DataType::FLOAT32, DeviceType::CPU);
@@ -106,6 +91,22 @@ tensor.print("demo_tensor");
 //     ]
 // ]
 */
+    void print(const std::string& name = "", size_t max_elements = 10) const;
+    void print_shape(const std::string& name = "") const;
+private:
+    void release() {
+        if (data_ptr_) {
+            if (device_ == DeviceType::CPU) {
+                delete[] static_cast<uint8_t*>(data_ptr_);
+            } else {
+#ifdef USE_CUDA
+                cudaFree(data_ptr_);
+#endif
+            }
+            data_ptr_ = nullptr;
+        }
+    }
+
     template<typename T>
     void print_impl(const T* data, size_t max_elements) const;
     void allocate_memory(size_t bytes);

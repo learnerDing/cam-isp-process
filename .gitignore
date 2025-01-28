@@ -6,5 +6,8 @@
 *.mp4
 *.a
 *.so
+*.jpg
+*.raw
+*.rgb
 simpleocv
 .VSCodeCounter/

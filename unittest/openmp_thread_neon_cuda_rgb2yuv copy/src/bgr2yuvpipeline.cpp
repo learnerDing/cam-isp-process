@@ -34,11 +34,14 @@ BGR2YUVPipeline::~BGR2YUVPipeline() {
 
 Tensor BGR2YUVPipeline::process() {
     // 执行CUDA核函数
+     bgr_tensor_gpu_.print(0,0,4,"bgr_tensor_gpu_ before lauch cuda print");
     launch_bgr2yuv(
         &bgr_tensor_gpu_,&yuv_tensor_gpu_,
         width_, height_
     );
-    
+
+    yuv_tensor_gpu_.print(0,0,24,"yuv_tensor_gpu_ after lauch cuda print");
+    //printf("width_=%d,height_=%d\n",width_,height_);
     // 返回CPU Tensor，右值引用不拷贝
     return yuv_tensor_gpu_.gputocpu();//这里创建的shape也是[1,1,1.5*width*height]的yuv420p的shape
 }

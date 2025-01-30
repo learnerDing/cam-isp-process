@@ -30,7 +30,7 @@ Tensor& Tensor::operator=(Tensor&& other) noexcept {
 Tensor::Tensor(const cv::Mat& mat) 
     : device_(DeviceType::CPU), dtype_(DataType::FLOAT32) {
     #ifdef DBG_Tensor
-        printf("Tensor(cv::Mat) shape=[ch:%d,h:%d,w:%d]\n",
+        printf("Tensor create from Mat, shape=[ch:%d,h:%d,w:%d]\n",
                mat.channels(), mat.rows, mat.cols);
     #endif
     int channels = mat.channels();
@@ -74,32 +74,54 @@ Tensor::Tensor(const std::vector<int>& shape, DataType dtype, DeviceType device)
     // 分配内存
     allocate_memory(bytes());
 }
-Tensor Tensor::to(DeviceType target) const {
-    if (device_ == target) return clone();
 
-    Tensor result(target);
+Tensor Tensor::cputogpu() const {
+    assert(device_ == DeviceType::CPU && "cputogpu() requires CPU tensor");
+
+    Tensor result(DeviceType::GPU);  // 直接创建 GPU tensor
     result.dtype_ = dtype_;
     result.shape_ = shape_;
     result.allocate_memory(bytes());
 
 #ifdef USE_CUDA
-    if (device_ == DeviceType::CPU && target == DeviceType::GPU) {
-        cudaMemcpy(result.data_ptr_, data_ptr_, bytes(), cudaMemcpyHostToDevice);
-    } else {
-        cudaMemcpy(result.data_ptr_, data_ptr_, bytes(), cudaMemcpyDeviceToHost);
-    }
+    // 直接处理 CPU->GPU 的拷贝
+    cudaError_t err = cudaMemcpy(
+        result.data_ptr_,    // 目标地址 (GPU)
+        data_ptr_,           // 源地址 (CPU)
+        bytes(),             // 数据大小
+        cudaMemcpyHostToDevice
+    );
+    assert(err == cudaSuccess && "cudaMemcpy Host->Device failed");
+#else
+    assert(false && "CUDA support not enabled");
 #endif
+
     return result;
 }
 
-Tensor Tensor::cputogpu() const {
-    assert(device_ == DeviceType::CPU);
-    return to(DeviceType::GPU);
-}
 
 Tensor Tensor::gputocpu() const {
-    assert(device_ == DeviceType::GPU);
-    return to(DeviceType::CPU);
+    assert(device_ == DeviceType::GPU && "gputocpu() requires GPU tensor");
+
+    Tensor result(DeviceType::CPU);  // 直接创建 CPU tensor
+    result.dtype_ = dtype_;
+    result.shape_ = shape_;
+    result.allocate_memory(bytes());
+
+#ifdef USE_CUDA
+    // 直接处理 GPU->CPU 的拷贝
+    cudaError_t err = cudaMemcpy(
+        result.data_ptr_,    // 目标地址 (CPU)
+        data_ptr_,           // 源地址 (GPU)
+        bytes(),             // 数据大小
+        cudaMemcpyDeviceToHost
+    );
+    assert(err == cudaSuccess && "cudaMemcpy Device->Host failed");
+#else
+    assert(false && "CUDA support not enabled");
+#endif
+
+    return result;
 }
 Tensor Tensor::clone() const {
     Tensor new_tensor;
@@ -234,7 +256,7 @@ void Tensor::print(const std::string& name, size_t max_elements) const {
     Tensor cpu_tensor;
     const Tensor* print_tensor = this;
     if (device_ != DeviceType::CPU) {
-        cpu_tensor = this->to(DeviceType::CPU);
+        cpu_tensor = this->gputocpu();
         print_tensor = &cpu_tensor;
     }
 
@@ -258,7 +280,7 @@ void Tensor::print(int channel, int row, int elements, const std::string& name) 
     Tensor cpu_tensor;
     const Tensor* print_tensor = this;
     if (device_ != DeviceType::CPU) {
-        cpu_tensor = this->to(DeviceType::CPU);
+        cpu_tensor = this->gputocpu();
         print_tensor = &cpu_tensor;
     }
 

@@ -1,0 +1,8 @@
+openmp_thread_neon_cuda_rgb2yuv单元测试程序
+使用openmp多线程neon opencv 三种方式尝试去加速rgb2yuv程序，查看性能指标
+结果：
+gr2yuv_benchmark 
+bgr2yuv_opencv average time: 4.37 ms✅
+bgr2yuv_openmp average time: 10.8 ms
+bgr2yuv_neon average time: 5.94 ms
+bgr2yuv_cpu average time: 39.87 ms

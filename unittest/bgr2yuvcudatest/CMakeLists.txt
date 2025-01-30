@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(openmp_thread_neon_cuda_rgb2yuv LANGUAGES CXX CUDA)
+project(openmp_thread_neon_cuda_bgr2yuv LANGUAGES CXX CUDA)
 
 # 查找 CUDA
 find_package(CUDA 10.0 REQUIRED)
@@ -25,24 +25,18 @@ set(CMAKE_C_FLAGS_DEBUG    "${CMAKE_C_FLAGS_DEBUG}    -Wall -O0")
 set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG}  -Wall -O0")
 set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -O0 -G -Xcompiler -Wall")
 
-# 查找 OpenCV
-find_package(OpenCV REQUIRED)
-message(STATUS "Found OpenCV: ${OpenCV_VERSION}")
-message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
-message(STATUS "OpenCV libraries: ${OpenCV_LIBRARIES}")
 
 # 添加可执行目标
 add_executable(${PROJECT_NAME}
-    main.cpp
-    src/rgb2yuv.cu
-    src/rgb2yuvpipeline.cpp
+    bgr2yuvtest.cpp
+    bgr2yuv.cu
 )
 
 # 包含头文件目录
-target_include_directories(${PROJECT_NAME} PRIVATE include ${OpenCV_INCLUDE_DIRS} ${CUDA_PATH}/include)
+target_include_directories(${PROJECT_NAME} PRIVATE include  ${CUDA_PATH}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 # 链接库
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CUDA_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CUDA_LIBRARIES} )
 
 # 配置 C++ 标准
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -47,7 +47,6 @@ public:
 
     // 设备间传输
     //类方法后面加上const表示函数内部不能修改Tensor的成员
-    Tensor to(DeviceType target) const;
     Tensor cputogpu() const;
     Tensor gputocpu() const;
 

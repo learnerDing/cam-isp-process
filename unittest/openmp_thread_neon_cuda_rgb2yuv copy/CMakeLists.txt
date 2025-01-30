@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(openmp_thread_neon_cuda_rgb2yuv LANGUAGES CXX CUDA)
+project(openmp_thread_neon_cuda_bgr2yuv LANGUAGES CXX CUDA)
 
 # 查找 CUDA
 find_package(CUDA 10.0 REQUIRED)
@@ -34,8 +34,8 @@ message(STATUS "OpenCV libraries: ${OpenCV_LIBRARIES}")
 # 添加可执行目标
 add_executable(${PROJECT_NAME}
     main3.cpp
-    src/rgb2yuv.cu
-    src/rgb2yuvpipeline.cpp
+    src/bgr2yuv.cu
+    src/bgr2yuvpipeline.cpp
     src/Tensor.cpp
 )
 

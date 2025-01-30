@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(openmp_thread_neon_cuda_bgr2yuv LANGUAGES CXX CUDA)
 
 # 查找 CUDA
-find_package(CUDA 10.0 REQUIRED)
+find_package(CUDA 10.2 REQUIRED)
 set(CUDA_PATH ${CUDA_TOOLKIT_ROOT_DIR})
 list(APPEND CMAKE_MODULE_PATH ${CUDA_PATH}/lib64)
 find_package(CUDA REQUIRED)
@@ -13,13 +13,12 @@ set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS}")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}  -Xcompiler -Wall")
 
 # 设置 CUDA 架构
+#jetson nano GPU architecture = sm 53 Maxwell架构
+message("-- Assign GPU architecture (sm=53)")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}  \
-                      -gencode=arch=compute_70,code=\\\"sm_70,compute_70\\\" \
-                      -gencode=arch=compute_75,code=\\\"sm_75,compute_75\\\" \
+                      -gencode=arch=compute_53,code=\\\"sm_53,compute_53\\\" \
                       ")
-set(CMAKE_CUDA_ARCHITECTURES 70 75 )
-message("-- Assign GPU architecture (sm=70 75)")
-
+set(CMAKE_CUDA_ARCHITECTURES 53)
 # 设置调试模式标志
 set(CMAKE_C_FLAGS_DEBUG    "${CMAKE_C_FLAGS_DEBUG}    -Wall -O0")
 set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG}  -Wall -O0")

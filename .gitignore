@@ -9,6 +9,8 @@
 *.jpg
 *.raw
 *.rgb
+*.bin
+*.param
 simpleocv
 .VSCodeCounter/
 *report/

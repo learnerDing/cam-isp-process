@@ -1,0 +1,42 @@
+#cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.1)  # 需要支持 C++11
+project(MyYOLOv5)
+
+# 设置C++标准
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 查找依赖库
+find_package(OpenCV REQUIRED     # 强制要求OpenCV存在
+  COMPONENTS core highgui imgproc videoio imgcodecs)  # 明确指定需要的OpenCV组件
+# 查找线程库
+set(ncnn_DIR "/usr/local/lib/cmake/ncnn/" CACHE PATH "Directory that contains ncnnConfig.cmake")
+find_package(ncnn REQUIRED)
+  # 手动指定ncnn路径
+set(NCNN_INCLUDE_DIRS "/usr/local/include/ncnn")       # ncnn头文件路径
+set(SOURCES
+  main.cpp
+  yolov5.cpp
+)
+
+# 包含头文件路径
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}     # 当前目录头文件
+  # ${CMAKE_CURRENT_SOURCE_DIR}/provider  # provider子目录头文件
+  ${NCNN_INCLUDE_DIRS}            # ncnn头文件路径
+  ${OpenCV_INCLUDE_DIRS}          # OpenCV头文件路径
+)
+# 获取当前目标的INCLUDE_DIRECTORIES属性
+get_property(include_dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+
+# 打印出包含的文件夹路径
+message(STATUS "Include directories: ${include_dirs}")
+# 创建可执行文件
+add_executable(my_yolov5 ${SOURCES})
+
+# 链接库
+target_link_libraries(my_yolov5 PRIVATE
+  ncnn          # ncnn主库（假设已包含Vulkan支持）
+  ${OpenCV_LIBS}# OpenCV库
+
+)

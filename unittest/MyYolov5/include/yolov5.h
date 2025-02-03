@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <ncnn/net.h>
-
+#define YOLOV5_V62 1
 struct Object {
     cv::Rect_<float> rect;
     int label;

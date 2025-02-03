@@ -1,35 +1,64 @@
-#cmake_minimum_required(VERSION 2.6)
-cmake_minimum_required(VERSION 3.1)  # 需要支持 C++11
+cmake_minimum_required(VERSION 3.1)
 project(MyYOLOv5)
 
 # 设置C++标准
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 新增：启用线程支持
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+
 # 查找依赖库
-find_package(ncnn REQUIRED)      # 假设ncnn已安装或通过CMAKE_PREFIX_PATH指定
-find_package(OpenCV REQUIRED     # 强制要求OpenCV存在
-  COMPONENTS core highgui imgproc videoio imgcodecs)  # 明确指定需要的OpenCV组件
+find_package(OpenCV REQUIRED
+  COMPONENTS core highgui imgproc videoio imgcodecs)
+find_package(Threads REQUIRED)  # 新增：显式查找pthread
+find_package(OpenMP REQUIRED)
 
-# 收集所有源码文件（自动包含当前目录及provider子目录）
-file(GLOB_RECURSE SOURCES 
-  "*.cpp"
-  #"provider/*.cpp"
+# 手动指定ncnn路径（保持原样）
+set(NCNN_INCLUDE_DIRS "/usr/local/include/ncnn")
+file(GLOB NCNN_LIBS  
+  "/usr/local/lib/ncnn/libncnn.a"
+  "/usr/local/lib/ncnn/libglslang.a"
+  "/usr/local/lib/ncnn/libSPIRV.a"
+  "/usr/local/lib/ncnn/libMachineIndependent.a"
+  "/usr/local/lib/ncnn/libOGLCompiler.a"
+  "/usr/local/lib/ncnn/libOSDependent.a"
+  "/usr/local/lib/ncnn/libGenericCodeGen.a"              
+  "/usr/lib/aarch64-linux-gnu/libvulkan.so")
+set(NCNN_LIBRARIES ${NCNN_LIBS})
+
+# 收集所有源码文件（新增多线程相关文件）
+set(SOURCES
+  main.cpp
+  yolov5.cpp
+  FrameQueue.cpp     # 新增
+  InferenceThread.cpp  # 新增
+  Thread.cpp         # 新增
 )
 
-# 包含头文件路径
+# 包含头文件路径（新增include目录）
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}     # 当前目录头文件
-  ${CMAKE_CURRENT_SOURCE_DIR}/provider  # provider子目录头文件
-  ${ncnn_INCLUDE_DIRS}            # ncnn头文件路径
-  ${OpenCV_INCLUDE_DIRS}          # OpenCV头文件路径
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include  # 新增头文件目录
+  ${NCNN_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
-# 创建可执行文件
+# 保持原有的调试信息
+get_property(include_dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+message(STATUS "Include directories: ${include_dirs}")
+
+add_link_options(-fopenmp -s)
+
+# 创建可执行文件（保持原样）
 add_executable(my_yolov5 ${SOURCES})
 
-# 链接库
+# 链接库（保持原有顺序，仅添加线程库）
 target_link_libraries(my_yolov5 PRIVATE
-  ncnn            # ncnn主库（假设已包含Vulkan支持）
-  ${OpenCV_LIBS}  # OpenCV库
+  "-Wl,--start-group"
+  ${NCNN_LIBRARIES}
+  "-Wl,--end-group"    
+  ${OpenCV_LIBS}
+  Threads::Threads  # 显式链接pthread
+  -ldl 
 )

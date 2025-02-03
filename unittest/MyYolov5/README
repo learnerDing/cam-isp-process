@@ -1,0 +1,15 @@
+cam-isp-process unittest MyYOLOv5 
+读取视频帧作为provider，使用ncnn yolov5推理作为消费者。
+项目结构：
+|-MyYOlOv5
+    |-include
+        |-FrameQueue.h
+        |-InferenceThread.h
+        |-Thread.h
+        |-yolov5.h
+    |-cmakelists.txt
+    |-FrameQueue.cpp
+    |-InferenceThread.cpp
+    |-main.cpp
+    |-Thread.cpp
+    |-yolov5.cpp

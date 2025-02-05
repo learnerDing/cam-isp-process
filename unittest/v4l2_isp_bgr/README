@@ -1,0 +1,5 @@
+cam-isp-process unittest v4l2_isp_bgr
+
+单元测试：使用标准v4l2借口实现采集图像，如果是raw10格式转化为raw8，
+使用cv::Mat数据结构，放入缓冲区队列中，缓冲区出队帧使用opencv或者
+cuda进行isp转化为为bgr图像

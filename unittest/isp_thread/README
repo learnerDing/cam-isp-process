@@ -1,0 +1,6 @@
+cam-isp-process unittest isp_thread
+
+单元测试：生产者，随机生成的raw8格式的opencv::Mat数据结构，经过缓冲区队列出队
+之后送入isp-pipeline中。
+pipeline包含以下算子：
+BayerToBGR：插值算法让raw8格式变成bgr888，采用双线性插值算法，无法使用cuda加速

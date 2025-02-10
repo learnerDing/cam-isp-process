@@ -5,25 +5,22 @@
 #include <chrono>
 #include <thread>
 #include <fstream>
-#include "PreviewThread.h"
 #define YOLOV5_V62 1  // 根据实际模型版本设置
-
-
 
 int main(int argc, char** argv)
 {
-    const bool ENABLE_PREVIEW = true; // 预览开关
-
-    FrameQueue<cv::Mat> frameQueue(30, 5);
-    FrameQueue<cv::Mat> previewQueue(3, 1); // 预览专用队列
-    //推理线程如果开启预览，对接两个队列
-    //frameQueue传递队列本身，previewQueue因为可能为空所以传递指针
-    InferenceThread inferenceThread(frameQueue, 
-                                  ENABLE_PREVIEW ? &previewQueue : nullptr);
-    PreviewThread previewThread(previewQueue);
-    if (ENABLE_PREVIEW) {
-        previewThread.start();//如果打开预览开关，则启动预览线程
+    if (argc != 2) 
+    {
+        std::cerr << "Usage: " << argv[0] << " <rgb_file_path>\n";
+        return -1;
     }
+
+    // 初始化队列（容量30，满时丢弃最旧的5帧）
+    FrameQueue<cv::Mat> frameQueue(30, 5);
+    
+    // 创建推理线程
+    InferenceThread inferenceThread(frameQueue);
+    
     // 打开二进制文件
     std::ifstream file(argv[1], std::ios::binary);
     if (!file) 
@@ -67,11 +64,8 @@ int main(int argc, char** argv)
 
     // 停止队列并等待推理完成
     frameQueue.stop();
-    previewQueue.stop();
     inferenceThread.join();
-    if (ENABLE_PREVIEW) {
-        previewThread.join();
-    }
+
     auto total_end = std::chrono::high_resolution_clock::now();
     auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(total_end - total_start);
     

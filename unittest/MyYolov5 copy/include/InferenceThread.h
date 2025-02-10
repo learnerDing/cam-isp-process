@@ -9,14 +9,13 @@
 
 class InferenceThread : public Thread {
 public:
-    InferenceThread(FrameQueue<cv::Mat>& frameQueue, 
-                    FrameQueue<cv::Mat>* previewQueue = nullptr) {}
+    InferenceThread(FrameQueue<cv::Mat>& frameQueue);
+    ~InferenceThread();
     void run() override;
 
 private:
     ncnn::Net yolov5_net;
     FrameQueue<cv::Mat>* m_frameQueue;
-    FrameQueue<cv::Mat>* m_previewQueue; // 新增预览队列指针
     
     void init_model();
     void processFrame(const cv::Mat& frame);

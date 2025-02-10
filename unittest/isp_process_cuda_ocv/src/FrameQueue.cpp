@@ -32,23 +32,28 @@ void FrameQueue<T>::addFrame(std::shared_ptr<T> frame) {
     m_cond.notify_one();
 }
 
+//D指导建议我将getFrame加入超时机制
 template <typename T>
-bool FrameQueue<T>::getFrame(std::shared_ptr<T>& frame) {
+bool FrameQueue<T>::getFrame(std::shared_ptr<T>& frame, uint32_t timeout_ms ) {
     std::unique_lock<std::mutex> lock(m_mutex);
-    m_cond.wait(lock, [this] { return !m_frameQueue.empty() || !m_running; });
+    
+    // 使用wait_for替换wait
+    const auto status = m_cond.wait_for(lock, 
+        std::chrono::milliseconds(timeout_ms),
+        [this] { return !m_frameQueue.empty() || !m_running; });
 
-    if (!m_running && m_frameQueue.empty()) {
+    // 处理等待结果
+    if (!status || (!m_running && m_frameQueue.empty())) {
         return false;
     }
 
     frame = m_frameQueue.front();
     m_frameQueue.pop();
-
 // 调试输出开关
-#ifdef ENABLE_QUEUE_DEBUG
-    std::cout << "当前队列大小: " << m_frameQueue.size() 
-              << "/" << m_maxSize << std::endl;
-#endif
+    #ifdef ENABLE_QUEUE_DEBUG
+        std::cout << "当前队列大小: " << m_frameQueue.size() 
+                << "/" << m_maxSize << std::endl;
+    #endif
 
     return true;
 }

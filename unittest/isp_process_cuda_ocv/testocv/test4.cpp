@@ -23,7 +23,7 @@ int main() {
     // 读取RAW8图像文件
     const std::string rawFilename = "input.raw"; // 替换为实际文件路径
     cv::Mat rawImage(1080, 1920, CV_8UC1); // 单通道Bayer图像
-
+    cv::Mat rgbImage;
     FILE* file = fopen(rawFilename.c_str(), "rb");
     if (!file) {
         std::cerr << "无法打开文件: " << rawFilename << std::endl;
@@ -37,7 +37,9 @@ int main() {
         std::cerr << "文件大小错误。预期 " << 1920*1080 << " 字节，实际 " << bytesRead << " 字节。" << std::endl;
         return -1;
     }
-
+    cv::namedWindow("raw image", cv::WINDOW_NORMAL);
+    cv::imshow("raw image",rawImage);
+    cv::waitKey(0); // 等待按键
     const int iterations = 100; // 运行次数
     double totalDebayer = 0.0, totalAWB = 0.0, totalCCM = 0.0, totalGamma = 0.0, totalAll = 0.0;
 
@@ -47,7 +49,7 @@ int main() {
         
         // 1. Debayer处理
         auto startDebayer = std::chrono::high_resolution_clock::now();
-        cv::Mat rgbImage;
+
         cv::cvtColor(rawImage, rgbImage, cv::COLOR_BayerRG2RGB); // 根据实际Bayer模式调整
         auto endDebayer = std::chrono::high_resolution_clock::now();
         totalDebayer += std::chrono::duration<double>(endDebayer - startDebayer).count();
@@ -73,8 +75,10 @@ int main() {
         // 总计时结束
         auto endTotal = std::chrono::high_resolution_clock::now();
         totalAll += std::chrono::duration<double>(endTotal - startTotal).count();
-    }
-
+    }   
+    cv::namedWindow("isp process", cv::WINDOW_NORMAL);
+    cv::imshow("isp process",rgbImage.clone());
+    cv::waitKey(0); // 等待按键
     // 输出平均时间（毫秒）
     std::cout << "Average Time (ms):" << std::endl;
     std::cout << "Debayer: " << (totalDebayer / iterations) * 1000 << std::endl;
@@ -150,7 +154,86 @@ void applyAWB(cv::Mat& image) {
 }
 
 
-// 优化后的颜色校正矩阵（使用矩阵运算）
+// // 优化后的颜色校正矩阵（使用矩阵运算）
+// void applyCCM(cv::Mat& image) {
+//     const cv::Matx33f CCM(
+//         2.34403f,  -1.18042f, -0.296824f,
+//         0.00823594f, 1.44385f, -0.556513f,
+//         -0.0795542f, 0.0806464f, 0.909063f
+//     );
+
+//     // 转换为16位整数 (Q4.12格式)
+//     cv::Mat intImg;
+//     image.convertTo(intImg, CV_16SC3);
+
+//     // 矩阵参数转换为整数
+//     const int scale = 12;
+//     int16_t ccm[9];
+//     for (int i = 0; i < 9; ++i)
+//         ccm[i] = static_cast<int16_t>(CCM.val[i] * (1 << scale));
+
+//     // 加载矩阵到NEON寄存器
+//     int16x8x3_t ccm_neon;
+//     ccm_neon.val[0] = vld1q_s16(ccm);     // [0,1,2,3]
+//     ccm_neon.val[1] = vld1q_s16(ccm + 4); // [4,5,6,7]
+//     ccm_neon.val[2] = vld1q_s16(ccm + 8); // [8,0,0,0]
+
+//     #pragma omp parallel for
+//     for (int r = 0; r < intImg.rows; ++r) {
+//         int16_t* ptr = intImg.ptr<int16_t>(r);
+//         int c = 0;
+
+//         // 每次处理4像素
+//         const int neonStep = 4;
+//         for (; c <= (intImg.cols - neonStep)*3; c += neonStep*3) {
+//             // 加载像素 [B0,G0,R0, B1,G1,R1, B2,G2,R2, B3,G3,R3]
+//             int16x8x2_t pixels = vld2q_s16(ptr + c); // 每次加载8个int16
+
+//             // 分离通道
+//             int16x8_t B = pixels.val[0]; // [B0,B1,B2,B3, ...]
+//             int16x8_t G = pixels.val[1]; // [G0,G1,G2,G3, ...]
+//             int16x8_t R = vld1q_s16(ptr + c + 8); // 加载R通道
+
+//             // 计算R通道新值
+//             int32x4_t newR0 = vmull_s16(vget_low_s16(B), vget_low_s16(ccm_neon.val[0]));
+//             newR0 = vmlal_s16(newR0, vget_low_s16(G), vget_high_s16(ccm_neon.val[0]));
+//             newR0 = vmlal_s16(newR0, vget_low_s16(R), vget_low_s16(ccm_neon.val[1]));
+
+//             int32x4_t newR1 = vmull_s16(vget_high_s16(B), vget_low_s16(ccm_neon.val[0]));
+//             newR1 = vmlal_s16(newR1, vget_high_s16(G), vget_high_s16(ccm_neon.val[0]));
+//             newR1 = vmlal_s16(newR1, vget_high_s16(R), vget_low_s16(ccm_neon.val[1]));
+
+//             // 计算G通道新值（类似R通道）
+//             // ...
+
+//             // 计算B通道新值（类似R通道）
+//             // ...
+
+//             // 右移和饱和
+//             newR0 = vshrq_n_s32(newR0, scale);
+//             newR1 = vshrq_n_s32(newR1, scale);
+//             int16x4_t resR0 = vqmovn_s32(newR0);
+//             int16x4_t resR1 = vqmovn_s32(newR1);
+//             int16x8_t resR = vcombine_s16(resR0, resR1);            // 存储结果
+//             vst1q_s16(ptr + c + 0, resR);
+//             // 类似存储G和B通道...
+//         }
+
+//         // 处理剩余像素
+//         for (; c < intImg.cols*3; c += 3) {
+//             int16_t B = ptr[c];
+//             int16_t G = ptr[c+1];
+//             int16_t R = ptr[c+2];
+
+//             ptr[c]   = cv::saturate_cast<short>((B*ccm[0] + G*ccm[1] + R*ccm[2]) >> scale);
+//             ptr[c+1] = cv::saturate_cast<short>((B*ccm[3] + G*ccm[4] + R*ccm[5]) >> scale);
+//             ptr[c+2] = cv::saturate_cast<short>((B*ccm[6] + G*ccm[7] + R*ccm[8]) >> scale);
+//         }
+//     }
+
+//     // 转换回8UC3
+//     intImg.convertTo(image, CV_8UC3);
+// }
 void applyCCM(cv::Mat& image) {
     const cv::Matx33f CCM(
         2.34403f,  -1.18042f, -0.296824f,
@@ -162,17 +245,22 @@ void applyCCM(cv::Mat& image) {
     cv::Mat intImg;
     image.convertTo(intImg, CV_16SC3);
 
-    // 矩阵参数转换为整数
+    // 矩阵参数转换为整数并广播到NEON寄存器
     const int scale = 12;
     int16_t ccm[9];
     for (int i = 0; i < 9; ++i)
         ccm[i] = static_cast<int16_t>(CCM.val[i] * (1 << scale));
 
-    // 加载矩阵到NEON寄存器
-    int16x8x3_t ccm_neon;
-    ccm_neon.val[0] = vld1q_s16(ccm);     // [0,1,2,3]
-    ccm_neon.val[1] = vld1q_s16(ccm + 4); // [4,5,6,7]
-    ccm_neon.val[2] = vld1q_s16(ccm + 8); // [8,0,0,0]
+    // 加载每个通道的系数到广播的向量
+    const int16x4_t r_coeff_b = vdup_n_s16(ccm[0]);
+    const int16x4_t r_coeff_g = vdup_n_s16(ccm[1]);
+    const int16x4_t r_coeff_r = vdup_n_s16(ccm[2]);
+    const int16x4_t g_coeff_b = vdup_n_s16(ccm[3]);
+    const int16x4_t g_coeff_g = vdup_n_s16(ccm[4]);
+    const int16x4_t g_coeff_r = vdup_n_s16(ccm[5]);
+    const int16x4_t b_coeff_b = vdup_n_s16(ccm[6]);
+    const int16x4_t b_coeff_g = vdup_n_s16(ccm[7]);
+    const int16x4_t b_coeff_r = vdup_n_s16(ccm[8]);
 
     #pragma omp parallel for
     for (int r = 0; r < intImg.rows; ++r) {
@@ -182,37 +270,61 @@ void applyCCM(cv::Mat& image) {
         // 每次处理4像素
         const int neonStep = 4;
         for (; c <= (intImg.cols - neonStep)*3; c += neonStep*3) {
-            // 加载像素 [B0,G0,R0, B1,G1,R1, B2,G2,R2, B3,G3,R3]
-            int16x8x2_t pixels = vld2q_s16(ptr + c); // 每次加载8个int16
+            // 加载四个像素的BGR通道
+            int16x8x3_t pixels = vld3q_s16(ptr + c);
+            int16x8_t B = pixels.val[0];
+            int16x8_t G = pixels.val[1];
+            int16x8_t R = pixels.val[2];
 
-            // 分离通道
-            int16x8_t B = pixels.val[0]; // [B0,B1,B2,B3, ...]
-            int16x8_t G = pixels.val[1]; // [G0,G1,G2,G3, ...]
-            int16x8_t R = vld1q_s16(ptr + c + 8); // 加载R通道
+            // 计算R通道
+            int32x4_t newR_low = vmull_s16(vget_low_s16(B), r_coeff_b);
+            newR_low = vmlal_s16(newR_low, vget_low_s16(G), r_coeff_g);
+            newR_low = vmlal_s16(newR_low, vget_low_s16(R), r_coeff_r);
+            int32x4_t newR_high = vmull_s16(vget_high_s16(B), r_coeff_b);
+            newR_high = vmlal_s16(newR_high, vget_high_s16(G), r_coeff_g);
+            newR_high = vmlal_s16(newR_high, vget_high_s16(R), r_coeff_r);
 
-            // 计算R通道新值
-            int32x4_t newR0 = vmull_s16(vget_low_s16(B), vget_low_s16(ccm_neon.val[0]));
-            newR0 = vmlal_s16(newR0, vget_low_s16(G), vget_high_s16(ccm_neon.val[0]));
-            newR0 = vmlal_s16(newR0, vget_low_s16(R), vget_low_s16(ccm_neon.val[1]));
+            // 计算G通道
+            int32x4_t newG_low = vmull_s16(vget_low_s16(B), g_coeff_b);
+            newG_low = vmlal_s16(newG_low, vget_low_s16(G), g_coeff_g);
+            newG_low = vmlal_s16(newG_low, vget_low_s16(R), g_coeff_r);
+            int32x4_t newG_high = vmull_s16(vget_high_s16(B), g_coeff_b);
+            newG_high = vmlal_s16(newG_high, vget_high_s16(G), g_coeff_g);
+            newG_high = vmlal_s16(newG_high, vget_high_s16(R), g_coeff_r);
 
-            int32x4_t newR1 = vmull_s16(vget_high_s16(B), vget_low_s16(ccm_neon.val[0]));
-            newR1 = vmlal_s16(newR1, vget_high_s16(G), vget_high_s16(ccm_neon.val[0]));
-            newR1 = vmlal_s16(newR1, vget_high_s16(R), vget_low_s16(ccm_neon.val[1]));
-
-            // 计算G通道新值（类似R通道）
-            // ...
-
-            // 计算B通道新值（类似R通道）
-            // ...
+            // 计算B通道
+            int32x4_t newB_low = vmull_s16(vget_low_s16(B), b_coeff_b);
+            newB_low = vmlal_s16(newB_low, vget_low_s16(G), b_coeff_g);
+            newB_low = vmlal_s16(newB_low, vget_low_s16(R), b_coeff_r);
+            int32x4_t newB_high = vmull_s16(vget_high_s16(B), b_coeff_b);
+            newB_high = vmlal_s16(newB_high, vget_high_s16(G), b_coeff_g);
+            newB_high = vmlal_s16(newB_high, vget_high_s16(R), b_coeff_r);
 
             // 右移和饱和
-            newR0 = vshrq_n_s32(newR0, scale);
-            newR1 = vshrq_n_s32(newR1, scale);
-            int16x4_t resR0 = vqmovn_s32(newR0);
-            int16x4_t resR1 = vqmovn_s32(newR1);
-            int16x8_t resR = vcombine_s16(resR0, resR1);            // 存储结果
-            vst1q_s16(ptr + c + 0, resR);
-            // 类似存储G和B通道...
+            newR_low = vshrq_n_s32(newR_low, scale);
+            newR_high = vshrq_n_s32(newR_high, scale);
+            newG_low = vshrq_n_s32(newG_low, scale);
+            newG_high = vshrq_n_s32(newG_high, scale);
+            newB_low = vshrq_n_s32(newB_low, scale);
+            newB_high = vshrq_n_s32(newB_high, scale);
+
+            int16x4_t resR_low = vqmovn_s32(newR_low);
+            int16x4_t resR_high = vqmovn_s32(newR_high);
+            int16x8_t resR = vcombine_s16(resR_low, resR_high);
+
+            int16x4_t resG_low = vqmovn_s32(newG_low);
+            int16x4_t resG_high = vqmovn_s32(newG_high);
+            int16x8_t resG = vcombine_s16(resG_low, resG_high);
+
+            int16x4_t resB_low = vqmovn_s32(newB_low);
+            int16x4_t resB_high = vqmovn_s32(newB_high);
+            int16x8_t resB = vcombine_s16(resB_low, resB_high);
+
+            // 重新打包并存储结果
+            pixels.val[0] = resB;
+            pixels.val[1] = resG;
+            pixels.val[2] = resR;
+            vst3q_s16(ptr + c, pixels);
         }
 
         // 处理剩余像素
@@ -221,16 +333,15 @@ void applyCCM(cv::Mat& image) {
             int16_t G = ptr[c+1];
             int16_t R = ptr[c+2];
 
-            ptr[c]   = cv::saturate_cast<short>((B*ccm[0] + G*ccm[1] + R*ccm[2]) >> scale);
+            ptr[c]   = cv::saturate_cast<short>((B*ccm[6] + G*ccm[7] + R*ccm[8]) >> scale);
             ptr[c+1] = cv::saturate_cast<short>((B*ccm[3] + G*ccm[4] + R*ccm[5]) >> scale);
-            ptr[c+2] = cv::saturate_cast<short>((B*ccm[6] + G*ccm[7] + R*ccm[8]) >> scale);
+            ptr[c+2] = cv::saturate_cast<short>((B*ccm[0] + G*ccm[1] + R*ccm[2]) >> scale);
         }
     }
 
     // 转换回8UC3
     intImg.convertTo(image, CV_8UC3);
 }
-
 
 // Gamma校正（使用查找表优化）
 void applyGamma(cv::Mat& image) {

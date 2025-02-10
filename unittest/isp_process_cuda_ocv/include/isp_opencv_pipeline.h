@@ -5,7 +5,8 @@
 #include "FrameQueue.h"
 #include "Thread.h"
 #include <opencv2/opencv.hpp>
-
+#include <arm_neon.h>
+#include <omp.h>
 class ISPOpenCVPipeline : public Thread {
 public:
     explicit ISPOpenCVPipeline(FrameQueue<cv::Mat>& frameQueue);

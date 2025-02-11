@@ -1,6 +1,6 @@
 // This is FrameQueue.cpp
 // FrameQueue.cpp
-#include "FrameQueue.h"
+#include "include/FrameQueue.h"
 #define  ENABLE_QUEUE_DEBUG
 template <typename T>
 FrameQueue<T>::FrameQueue(size_t maxSize, size_t discard_num) 
@@ -65,6 +65,11 @@ void FrameQueue<T>::stop() {
     m_cond.notify_all();
 }
 
+template <typename T>
+bool FrameQueue<T>::isEmpty() const {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    return m_frameQueue.empty();
+}
 // 显式实例化
 template class FrameQueue<cv::Mat>;
 template class FrameQueue<AVFrame>;

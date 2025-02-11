@@ -15,7 +15,7 @@ int main(int argc, char** argv)
     const bool ENABLE_PREVIEW = true; // 预览开关
 
     FrameQueue<cv::Mat> frameQueue(30, 5);
-    FrameQueue<cv::Mat> previewQueue(3, 1); // 预览专用队列
+    FrameQueue<cv::Mat> previewQueue(5, 1); // 预览专用队列
     //推理线程如果开启预览，对接两个队列
     //frameQueue传递队列本身，previewQueue因为可能为空所以传递指针
     InferenceThread inferenceThread(frameQueue, 

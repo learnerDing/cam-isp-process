@@ -1,5 +1,5 @@
 cam-isp-process unittest MyYOLOv5 
-读取视频帧作为provider，使用ncnn yolov5推理作为消费者。
+读取视频帧作为provider，使用ncnn yolov5推理作为消费者，加入预览功能
 项目结构：
 |-MyYOlOv5
     |-include

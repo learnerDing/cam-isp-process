@@ -23,10 +23,12 @@ public:
     void addFrame(std::shared_ptr<T> frame);
     bool getFrame(std::shared_ptr<T>& frame,uint32_t timeout_ms=500);//引入超时机制
     void stop();
-
+     // D指导建议新增运行状态查询
+    bool isRunning() const { return m_running; }
+    bool isEmpty() const;
 private:
     std::queue<std::shared_ptr<T>> m_frameQueue;
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;//互斥锁申明为mutable才能在const方法函数中修改锁的状态
     std::condition_variable m_cond;
     bool m_running;
     size_t m_maxSize;

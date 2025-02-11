@@ -6,7 +6,7 @@
 
 class PreviewThread : public Thread {
 public:
-    PreviewThread(FrameQueue<cv::Mat>& previewQueue, int fps = 10)
+    PreviewThread(FrameQueue<cv::Mat>& previewQueue, int fps = 5)
         : m_previewQueue(previewQueue), m_fps(fps) {}
         
     void run() override {

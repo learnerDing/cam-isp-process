@@ -10,9 +10,9 @@
 class InferenceThread : public Thread {
 public:
     InferenceThread(FrameQueue<cv::Mat>& frameQueue, 
-                    FrameQueue<cv::Mat>* previewQueue = nullptr) {}
+                    FrameQueue<cv::Mat>* previewQueue);
     void run() override;
-
+    virtual ~InferenceThread();  // 声明析构函数
 private:
     ncnn::Net yolov5_net;
     FrameQueue<cv::Mat>* m_frameQueue;

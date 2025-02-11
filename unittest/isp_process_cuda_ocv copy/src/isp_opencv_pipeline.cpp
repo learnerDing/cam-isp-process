@@ -2,79 +2,26 @@
 #include "../include/isp_opencv_pipeline.h"
 
 ISPOpenCVPipeline::ISPOpenCVPipeline(FrameQueue<cv::Mat>& frameQueue)
-    : m_inputQueue(frameQueue) {}
+    : m_frameQueue(frameQueue) {}
 
 ISPOpenCVPipeline::~ISPOpenCVPipeline() {}
-
-// 新增输出队列管理实现
-void ISPOpenCVPipeline::addInferOutputQueue(FrameQueue<cv::Mat>* queue) {
-    m_inferQueues.push_back(queue);
-}
-
-void ISPOpenCVPipeline::addEncodeOutputQueue(FrameQueue<AVFrame>* queue) {
-    m_encodeQueues.push_back(queue);
-}
-// 新增转换函数实现
-std::shared_ptr<AVFrame> ISPOpenCVPipeline::convertToAVFrame(const cv::Mat& mat) {
-    // 确保颜色空间正确（根据ISP输出格式调整）
-    cv::Mat bgrMat;
-    cv::cvtColor(mat, bgrMat, cv::COLOR_RGB2BGR); // 如果ISP输出是RGB则需要转换
-
-    // 分配AVFrame
-    std::shared_ptr<AVFrame> frame(av_frame_alloc(), [](AVFrame* f) { av_frame_free(&f); });
-    frame->width = bgrMat.cols;
-    frame->height = bgrMat.rows;
-    frame->format = AV_PIX_FMT_YUV420P;
-    
-    // 分配缓冲区
-    if (av_frame_get_buffer(frame.get(), 0) < 0) {
-        throw std::runtime_error("无法分配AVFrame缓冲区");
-    }
-
-    // 执行转换
-    Mat_bgr2AVframe_yuv(bgrMat, frame.get());
-    
-    return frame;
-}
 
 void ISPOpenCVPipeline::run() {
     while (true) {
         std::shared_ptr<cv::Mat> frame;
-        if (!m_inputQueue.getFrame(frame)) {
+        if (!m_frameQueue.getFrame(frame)) {
             break; // 停止条件
         }
 
         // 执行 Debayer 处理
-        cv::Mat Image = applyDebayer(*frame);
+        cv::Mat debayeredImage = applyDebayer(*frame);
 
         // 预留其他模块处理
-        applyAWB(Image);
-        applyCCM(Image);
-        applyGamma(Image);
+        applyAWB(debayeredImage);
+        applyCCM(debayeredImage);
+        applyGamma(debayeredImage);
 
-        // 最终处理完成的图像在Image变量中
-        cv::Mat processedImage = Image.clone();//深拷贝一张
-        // 分发到推理队列
-        if (!m_inferQueues.empty()) {
-            auto inferFrame = std::make_shared<cv::Mat>(processedImage);
-            for (auto* queue : m_inferQueues) {
-                queue->addFrame(inferFrame);
-            }
-        }
-
-        // 分发到编码队列
-        if (!m_encodeQueues.empty()) {
-            try {
-                auto avFrame = convertToAVFrame(processedImage);
-                for (auto* queue : m_encodeQueues) {
-                    queue->addFrame(avFrame);
-                }
-            } catch (const std::exception& e) {
-                // 处理转换异常
-                std::cerr << "AVFrame转换失败: " << e.what() << std::endl;
-            }
-        }
-
+        // TODO: 将结果保存或传递到下一个阶段
     }
 }
 /*第4版opencv算法优化，awb使用 Q16.16 定点数格式避免浮点转换开销，ccm 将浮点矩阵预转换为缩放整数，使用整数 SIMD 指令

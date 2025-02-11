@@ -66,6 +66,10 @@ void InferenceThread::processFrame(const cv::Mat& frame)
         if (m_previewQueue) {//如果开启了预览，则向预览缓冲区队列加入缩小后的frame
             cv::Mat resultFrame = frame.clone();
             // 绘制检测框到resultFrame...
+             // 如果检测到物体，绘制检测框
+            if (!objects.empty()) {
+                draw_objects(resultFrame, objects);
+            }
             cv::resize(resultFrame, resultFrame, cv::Size(320, 320)); // 缩小分辨率
             auto previewFrame = std::make_shared<cv::Mat>(resultFrame);
             m_previewQueue->addFrame(previewFrame);

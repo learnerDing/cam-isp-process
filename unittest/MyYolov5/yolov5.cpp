@@ -438,8 +438,58 @@ int detect_yolov5(ncnn::Net& net,const cv::Mat& bgr, std::vector<Object>& object
     return 0; // 返回成功
 }
 
+// // 绘制检测到的目标
+// void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
+// {
+//     static const char* class_names[] = {
+//         "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",//9
+//         "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",//19
+//         "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",//29
+//         "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",//37
+//         "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",//47
+//         "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",//57
+//         "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",//67
+//         "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",//77
+//         "hair drier", "toothbrush"//79
+//     };
+
+//     cv::Mat image = bgr.clone(); // 克隆输入图像
+
+//     for (size_t i = 0; i < objects.size(); i++)
+//     {
+//         const Object& obj = objects[i];
+
+//         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
+//                 obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height); // 打印检测结果
+
+//         cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0)); // 绘制矩形框
+
+//         char text[256];
+//         sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100); // 标签和置信度
+
+//         int baseLine = 0;
+//         cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine); // 计算文本大小
+
+//         int x = obj.rect.x; // 文本 x 坐标
+//         int y = obj.rect.y - label_size.height - baseLine; // 文本 y 坐标
+//         if (y < 0)
+//             y = 0; // 如果 y 超出图像范围则裁剪
+//         if (x + label_size.width > image.cols)
+//             x = image.cols - label_size.width; // 如果 x 超出图像范围则裁剪
+
+//         cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+//                       cv::Scalar(255, 255, 255), -1); // 绘制背景框
+
+//         cv::putText(image, text, cv::Point(x, y + label_size.height),
+//                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0)); // 在图像上绘制文本
+//     }
+
+//     cv::imshow("image", image); // 显示图像
+//     cv::waitKey(0); // 等待按键
+// }
+
 // 绘制检测到的目标
-void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
+void draw_objects(cv::Mat& image, const std::vector<Object>& objects)
 {
     static const char* class_names[] = {
         "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",//9
@@ -452,8 +502,6 @@ void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",//77
         "hair drier", "toothbrush"//79
     };
-
-    cv::Mat image = bgr.clone(); // 克隆输入图像
 
     for (size_t i = 0; i < objects.size(); i++)
     {
@@ -483,11 +531,7 @@ void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         cv::putText(image, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0)); // 在图像上绘制文本
     }
-
-    cv::imshow("image", image); // 显示图像
-    cv::waitKey(0); // 等待按键
 }
-
 // int main(int argc, char** argv)
 // {
 //     if (argc != 2) // 检查命令行参数数量

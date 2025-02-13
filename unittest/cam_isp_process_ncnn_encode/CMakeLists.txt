@@ -17,6 +17,7 @@ find_package(FFmpeg REQUIRED) # 编码相关依赖
 
 # 添加子目录（这些子目录会生成静态库）注意顺序
 add_subdirectory(util)
+add_subdirectory(Cam)
 add_subdirectory(Isp)
 add_subdirectory(Inference)
 add_subdirectory(Encode)
@@ -29,6 +30,7 @@ add_executable(${PROJECT_NAME} main.cpp)
 # 链接依赖库
 target_link_libraries(${PROJECT_NAME} PRIVATE
     util
+    Cam
     Isp
     Inference
     Encode

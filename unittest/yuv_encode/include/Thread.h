@@ -1,13 +1,8 @@
+//this is Thread.h
 #ifndef THREAD_H
 #define THREAD_H
 
 #include <thread>
-// extern "C" {
-// #include <libavcodec/avcodec.h>
-// #include <libavutil/opt.h>
-// #include <libavutil/imgutils.h>
-// #include <libavutil/error.h>
-// }
 class Thread {
 public:
     Thread();

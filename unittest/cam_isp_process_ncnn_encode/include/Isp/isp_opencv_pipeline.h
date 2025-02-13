@@ -2,7 +2,7 @@
 #ifndef ISP_OPENCV_PIPELINE_H
 #define ISP_OPENCV_PIPELINE_H
 
-#include "../util/Tensor.h"
+// #include "../util/Tensor.h"
 #include "../util/FrameQueue.h"
 #include "../util/Thread.h"
 #include <opencv2/opencv.hpp>

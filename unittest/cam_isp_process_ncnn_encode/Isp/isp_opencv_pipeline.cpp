@@ -65,7 +65,7 @@ void ISPOpenCVPipeline::run() {
         // 分发到编码队列
         if (!m_encodeQueues.empty()) {
             try {
-                auto avFrame = convertToAVFrame(processedImage);
+                auto avFrame = convertToAVFrame(processedImage);//编码队列需要yuv420p的数据格式
                 for (auto* queue : m_encodeQueues) {
                     queue->addFrame(avFrame);
                 }

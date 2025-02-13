@@ -2,9 +2,9 @@
 #ifndef INFERENCETHREAD_H
 #define INFERENCETHREAD_H
 
-#include "Thread.h"
+#include "../util/Thread.h"
 #include "PreviewThread.h"
-#include "FrameQueue.h"
+#include "../util/FrameQueue.h"
 #include "yolov5.h"
 #include <ncnn/net.h>
 

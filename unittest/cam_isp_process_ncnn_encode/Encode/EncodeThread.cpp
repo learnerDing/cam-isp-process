@@ -1,61 +1,121 @@
 //This is EncodeThread.cpp
 #include "../include/Encode/EncodeThread.h"
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
-EncodeThread::EncodeThread(FrameQueue<AVFrame>& frameQueue, AVCodecContext* enc_ctx, std::ofstream& outfile)
-    : m_frameQueue(frameQueue), m_enc_ctx(enc_ctx), m_outfile(outfile) {
+EncodeThread::EncodeThread(FrameQueue<AVFrame>& frameQueue, const std::string& codecName,
+                           int width, int height, const std::string& outputBase)
+    : m_frameQueue(frameQueue), m_outputBase(outputBase),
+      m_width(width), m_height(height), m_running(true), m_failCount(0) {
+    initCodec(codecName);
     m_pkt = av_packet_alloc();
-    if (!m_pkt) {
-       throw std::runtime_error("Could not allocate AVPacket");
-    }
+    if (!m_pkt) throw std::runtime_error("Failed to allocate AVPacket");
+    openNewOutputFile();
 }
 
 EncodeThread::~EncodeThread() {
+    stopEncoding();
+    avcodec_free_context(&m_codecCtx);
     av_packet_free(&m_pkt);
+}
+void EncodeThread::initCodec(const std::string& codecName) {
+    const AVCodec* codec = avcodec_find_encoder_by_name(codecName.c_str());
+    if (!codec) throw std::runtime_error("Codec not found");
+
+    m_codecCtx = avcodec_alloc_context3(codec);
+    if (!m_codecCtx) throw std::runtime_error("Failed to allocate codec context");
+
+    // 配置编码参数
+    m_codecCtx->bit_rate = 400000;
+    m_codecCtx->width = m_width;
+    m_codecCtx->height = m_height;
+    m_codecCtx->time_base = {1, 25};
+    m_codecCtx->framerate = {25, 1};
+    m_codecCtx->gop_size = 10;
+    m_codecCtx->max_b_frames = 1;
+    m_codecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
+
+    if (codec->id == AV_CODEC_ID_H264)
+        av_opt_set(m_codecCtx->priv_data, "preset", "slow", 0);
+
+    if (avcodec_open2(m_codecCtx, codec, nullptr) < 0)
+        throw std::runtime_error("Failed to open codec");
+}
+
+void EncodeThread::openNewOutputFile() {
+    std::string filename = generateOutputFilename();
+    m_outputFile.open(filename, std::ios::binary);
+    if (!m_outputFile) throw std::runtime_error("Failed to open output file");
+    m_lastSplitTime = std::chrono::system_clock::now();
+}
+
+// 指定h264输出路径和文件名
+std::string EncodeThread::generateOutputFilename() const {
+    auto now = std::chrono::system_clock::now();
+    auto time = std::chrono::system_clock::to_time_t(now);
+    std::tm tm = *std::localtime(&time);
+
+    // 路径分割逻辑
+    size_t last_slash = m_outputBase.find_last_of("/\\");
+    std::string dir_part = m_outputBase.substr(0, last_slash);
+    std::string base_part = (last_slash == std::string::npos) ? 
+                            m_outputBase : 
+                            m_outputBase.substr(last_slash + 1);
+
+    std::ostringstream oss;
+    // 拼接完整路径
+    if (!dir_part.empty()) {
+        oss << dir_part << "/";
+    }
+    oss << base_part << "_" 
+        << std::put_time(&tm, "%Y%m%d_%H%M%S") << ".h264";
+    return oss.str();
 }
 
 void EncodeThread::run() {
-    AVFrame* frame = nullptr;
-    //[](AVFrame* frame){if(frame)av_frame_free(&frame);})lambda表达式当智能指针删除器
-    std::shared_ptr<AVFrame> frameptr(frame,[](AVFrame* frame)
-    {
-        if(frame)
-        av_frame_free(&frame);// 使用 FFmpeg 的 API 释放 AVFrame
+    const int maxFails = 10;
+    while (m_running && m_failCount < maxFails) {
+        std::shared_ptr<AVFrame> frame;
+        if (!m_frameQueue.getFrame(frame, 100)) { // 100ms 超时
+            m_failCount++;
+            continue;
+        }
+        
+        m_failCount = 0; // 成功获取帧，重置失败计数器
+        encode(frame.get());
+        
+        // 检查是否需要分割文件
+        auto now = std::chrono::system_clock::now();
+        if (now - m_lastSplitTime > std::chrono::minutes(10)) {
+            m_outputFile.close();
+            openNewOutputFile();
+        }
     }
-    );
-    while (m_frameQueue.getFrame(frameptr)) 
-    {   
-        frame = frameptr.get();
-        encode(frame);
-        //因为前面使用了shared_ptr<AVFrame>，在线程之外会自动析构，所以不需要再释放frame
-        //av_frame_free(&frame);
-    }
-
-    // 刷新编码器
+    
+    // 刷新编码缓冲区
     encode(nullptr);
+    
+    // 写入结束码
+    const uint8_t endcode[] = {0, 0, 1, 0xb7};
+    m_outputFile.write(reinterpret_cast<const char*>(endcode), sizeof(endcode));
+    m_outputFile.close();
 }
 
 void EncodeThread::encode(AVFrame* frame) {
-    int ret;
-
-    /* send the frame to the encoder */
-    if (frame)
-        printf("Send frame %3"PRId64"\n", frame->pts);
-
-    ret = avcodec_send_frame(m_enc_ctx, frame);
-    if (ret < 0) {
-                throw std::runtime_error("Error sending a frame for encoding"); 
-    }
+    int ret = avcodec_send_frame(m_codecCtx, frame);
+    if (ret < 0) throw std::runtime_error("Error sending frame");
 
     while (ret >= 0) {
-        ret = avcodec_receive_packet(m_enc_ctx, m_pkt);
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-            return;
-        else if (ret < 0) {
-          throw std::runtime_error("Error during encoding");
-        }
+        ret = avcodec_receive_packet(m_codecCtx, m_pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) break;
+        if (ret < 0) throw std::runtime_error("Error during encoding");
 
-        printf("Write packet %3"PRId64" (size=%5d)\n", m_pkt->pts, m_pkt->size);
-        m_outfile.write(reinterpret_cast<const char*>(m_pkt->data), m_pkt->size);
+        m_outputFile.write(reinterpret_cast<char*>(m_pkt->data), m_pkt->size);
         av_packet_unref(m_pkt);
     }
+}
+
+void EncodeThread::stopEncoding() {
+    m_running = false;
 }

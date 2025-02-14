@@ -1,4 +1,4 @@
-#include "include/isp_cuda_pipeline.h"
+// #include "include/isp_cuda_pipeline.h"
 #include "include/isp_opencv_pipeline.h"
 
 int main() {

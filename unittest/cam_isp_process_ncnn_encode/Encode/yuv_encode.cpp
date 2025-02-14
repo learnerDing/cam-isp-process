@@ -1,11 +1,14 @@
-#include "FrameQueue.h"
-#include "EncodeThread.h"
+//This is yuv_encode.cpp
+// This is yuv_encode.cpp
+#include "../include/util/FrameQueue.h"
+#include "../include/Encode/EncodeThread.h"
 
 #include <iostream>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
-#include <ctime>
+// #include <chrono>   // 添加chrono头文件
+// #include <thread>   // 添加thread头文件
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -14,129 +17,93 @@ extern "C" {
 }
 
 int main(int argc, char** argv) {
-    if (argc <= 4) {
-        std::cerr << "Usage: " << argv[0] << " <output file> <codec name> <yuv file> <width> <height>\n";
+    if (argc < 6) {
+        std::cerr << "Usage: " << argv[0] 
+                  << " <output_base> <codec> <yuv_file> <width> <height>\n";
         return 1;
     }
 
-    const std::string filename = argv[1];
-    const std::string codec_name = argv[2];
-    const std::string yuv_filename = argv[3];
+    // 初始化参数
+    const std::string outputBase = argv[1];
+    const std::string codecName = argv[2];
+    const std::string yuvFile = argv[3];
     const int width = std::stoi(argv[4]);
     const int height = std::stoi(argv[5]);
 
-    // 查找编码器
-    const AVCodec* codec = avcodec_find_encoder_by_name(codec_name.c_str());
-    if (!codec) {
-        std::cerr << "Codec '" << codec_name << "' not found\n";
+    // 打开 YUV 文件
+    std::ifstream yuvStream(yuvFile, std::ios::binary);
+    if (!yuvStream) {
+        std::cerr << "Error opening YUV file\n";
         return 1;
     }
 
-    // 分配编码器上下文
-    AVCodecContext* c = avcodec_alloc_context3(codec);
-    if (!c) {
-        std::cerr << "Could not allocate video codec context\n";
-        return 1;
-    }
+    // 初始化帧队列和编码线程
+    FrameQueue<AVFrame> frameQueue(10,1);
+    EncodeThread encoder(frameQueue, codecName, width, height, outputBase);
+    encoder.start();
 
-    // 设置编码器参数
-    c->bit_rate = 400000;
-    c->width = width;
-    c->height = height;
-    c->time_base = {1, 25};
-    c->framerate = {25, 1};
-    c->gop_size = 10;
-    c->max_b_frames = 1;
-    c->pix_fmt = AV_PIX_FMT_YUV420P;
-
-    if (codec->id == AV_CODEC_ID_H264) {
-        av_opt_set(c->priv_data, "preset", "slow", 0);
-    }
-
-    // 打开编码器
-    if (avcodec_open2(c, codec, nullptr) < 0) {
-        std::cerr << "Could not open codec\n";
-        avcodec_free_context(&c); // 释放编码器上下文
-        return 1;
-    }
-
-    // 打开输出文件
-    std::ofstream outfile(filename, std::ios::binary);
-    if (!outfile) {
-        std::cerr << "Could not open " << filename << "\n";
-        avcodec_free_context(&c); // 释放编码器上下文
-        return 1;
-    }
-
-    // 打开 YUV 输入文件
-    std::ifstream yuv_file(yuv_filename, std::ios::binary);
-    if (!yuv_file) {
-        std::cerr << "Could not open " << yuv_filename << "\n";
-        avcodec_free_context(&c); // 释放编码器上下文
-        return 1;
-    }
-
-    // 分配帧
+    // 准备 AVFrame
     AVFrame* frame = av_frame_alloc();
-    if (!frame) {
-        std::cerr << "Could not allocate video frame\n";
-        avcodec_free_context(&c); // 释放编码器上下文
-        return 1;
-    }
-    frame->format = c->pix_fmt;
-    frame->width = c->width;
-    frame->height = c->height;
-    std::cout<<"frame->format = "<<frame->format<<"frame->height="<<frame->height<<"\n";
-    // 分配帧缓冲区
-    if (av_frame_get_buffer(frame, 8) < 0) {
-        std::cerr << "Could not allocate the video frame data\n";
-        av_frame_free(&frame); // 释放帧
-        avcodec_free_context(&c); // 释放编码器上下文
-        return 1;
-    }
+    frame->format = AV_PIX_FMT_YUV420P;
+    frame->width = width;
+    frame->height = height;
+    av_frame_get_buffer(frame, 0);
 
-    // 创建帧队列和编码线程
-    FrameQueue<AVFrame> frameQueue(10);
-    EncodeThread encodeThread(frameQueue, c, outfile);
+    // 循环读取 YUV 数据
+    const size_t ySize = width * height;
+    const size_t uvSize = ySize / 4;
+    int64_t pts = 0;
+    
+    // 使用C++11标准的持续时间定义
+    const auto FRAME_INTERVAL = std::chrono::microseconds(33333); // 33.333毫秒
 
-    encodeThread.start();
+    while (true) {
+        auto frame_start = std::chrono::steady_clock::now();
+        bool frame_valid = true;
 
-    // 编码 1500 帧的视频
-    for (int i = 0; i < 1500; i++) {
-        std::fflush(stdout);
-
-        // 确保帧数据可写
-        /*Ensure that the frame data is writable, avoiding data copy if possible.
-        Do nothing if the frame is writable, allocate new buffers and copy the data if it is not*/
-        if (av_frame_make_writable(frame) < 0) {
-            std::cerr << "Could not make frame writable\n";
-            av_frame_free(&frame); // 释放帧
-            avcodec_free_context(&c); // 释放编码器上下文
-            return 1;
+        // 读取 Y 分量
+        yuvStream.read(reinterpret_cast<char*>(frame->data[0]), ySize);
+        if (yuvStream.eof()) {
+            yuvStream.clear();
+            yuvStream.seekg(0);
+            frame_valid = false;
         }
 
-        // 从文件读取 YUV 数据
-        yuv_file.read(reinterpret_cast<char*>(frame->data[0]), width * height);      // Y
-        yuv_file.read(reinterpret_cast<char*>(frame->data[1]), width * height / 4);  // U
-        yuv_file.read(reinterpret_cast<char*>(frame->data[2]), width * height / 4);  // V
+        if (frame_valid) {
+            // 读取 UV 分量
+            yuvStream.read(reinterpret_cast<char*>(frame->data[1]), uvSize);
+            yuvStream.read(reinterpret_cast<char*>(frame->data[2]), uvSize);
+            
+            // 检查UV分量是否读取完整
+            if (yuvStream.gcount() != uvSize) {
+                yuvStream.clear();
+                yuvStream.seekg(0);
+                frame_valid = false;
+            }
+        }
 
-        frame->pts = i;
+        if (frame_valid) {
+            frame->pts = pts++;
+            frameQueue.addFrame(std::shared_ptr<AVFrame>(
+                av_frame_clone(frame),
+                [](AVFrame* f) { av_frame_free(&f); }
+            ));
+        }
+
+        // 精确控制帧率
+        auto frame_end = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+            frame_end - frame_start);
+        auto sleep_time = FRAME_INTERVAL - elapsed;
         
-        //frame深拷贝一张，然后包装成shared_ptr送入队列
-        frameQueue.addFrame(std::shared_ptr<AVFrame>(av_frame_clone(frame)));
+        if (sleep_time > std::chrono::microseconds(0)) {
+            std::this_thread::sleep_for(sleep_time);
+        }
     }
 
-    // 停止帧队列并等待编码线程完成
-    frameQueue.stop();
-    encodeThread.join();
-
-    // 添加序列结束码
-    const uint8_t endcode[] = {0, 0, 1, 0xb7}; // h264 文件结束码
-    outfile.write(reinterpret_cast<const char*>(endcode), sizeof(endcode));
-
-    // 释放资源
+    // 清理资源
     av_frame_free(&frame);
-    avcodec_free_context(&c);
-
+    frameQueue.stop();
+    encoder.join();
     return 0;
 }

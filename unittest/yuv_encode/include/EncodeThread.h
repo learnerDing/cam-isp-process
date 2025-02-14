@@ -3,6 +3,7 @@
 #include "Thread.h"
 #include <fstream> // 添加这行
 #include <chrono>
+#include <ctime>
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>

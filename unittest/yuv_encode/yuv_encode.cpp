@@ -1,12 +1,14 @@
 //This is yuv_encode.cpp
-#include "FrameQueue.h"
-#include "EncodeThread.h"
+// This is yuv_encode.cpp
+#include "include/FrameQueue.h"
+#include "include/EncodeThread.h"
 
 #include <iostream>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
-#include <ctime>
+// #include <chrono>   // 添加chrono头文件
+// #include <thread>   // 添加thread头文件
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -36,7 +38,7 @@ int main(int argc, char** argv) {
     }
 
     // 初始化帧队列和编码线程
-    FrameQueue<AVFrame> frameQueue(10);
+    FrameQueue<AVFrame> frameQueue(10,1);
     EncodeThread encoder(frameQueue, codecName, width, height, outputBase);
     encoder.start();
 
@@ -51,25 +53,52 @@ int main(int argc, char** argv) {
     const size_t ySize = width * height;
     const size_t uvSize = ySize / 4;
     int64_t pts = 0;
+    
+    // 使用C++11标准的持续时间定义
+    const auto FRAME_INTERVAL = std::chrono::microseconds(33333); // 33.333毫秒
 
     while (true) {
+        auto frame_start = std::chrono::steady_clock::now();
+        bool frame_valid = true;
+
         // 读取 Y 分量
         yuvStream.read(reinterpret_cast<char*>(frame->data[0]), ySize);
         if (yuvStream.eof()) {
             yuvStream.clear();
             yuvStream.seekg(0);
-            continue;
+            frame_valid = false;
         }
 
-        // 读取 UV 分量
-        yuvStream.read(reinterpret_cast<char*>(frame->data[1]), uvSize);
-        yuvStream.read(reinterpret_cast<char*>(frame->data[2]), uvSize);
+        if (frame_valid) {
+            // 读取 UV 分量
+            yuvStream.read(reinterpret_cast<char*>(frame->data[1]), uvSize);
+            yuvStream.read(reinterpret_cast<char*>(frame->data[2]), uvSize);
+            
+            // 检查UV分量是否读取完整
+            if (yuvStream.gcount() != uvSize) {
+                yuvStream.clear();
+                yuvStream.seekg(0);
+                frame_valid = false;
+            }
+        }
+
+        if (frame_valid) {
+            frame->pts = pts++;
+            frameQueue.addFrame(std::shared_ptr<AVFrame>(
+                av_frame_clone(frame),
+                [](AVFrame* f) { av_frame_free(&f); }
+            ));
+        }
+
+        // 精确控制帧率
+        auto frame_end = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+            frame_end - frame_start);
+        auto sleep_time = FRAME_INTERVAL - elapsed;
         
-        frame->pts = pts++;
-        frameQueue.addFrame(std::shared_ptr<AVFrame>(
-            av_frame_clone(frame),
-            [](AVFrame* f) { av_frame_free(&f); }
-        ));
+        if (sleep_time > std::chrono::microseconds(0)) {
+            std::this_thread::sleep_for(sleep_time);
+        }
     }
 
     // 清理资源

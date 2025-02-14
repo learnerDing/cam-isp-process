@@ -1,10 +1,9 @@
-//This is EncodeThread.h
-#ifndef ENCODETHREAD_H
-#define ENCODETHREAD_H
-
+#pragma once
 #include "FrameQueue.h"
 #include "Thread.h"
 #include <fstream> // 添加这行
+#include <chrono>
+#include <ctime>
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
@@ -14,18 +13,29 @@ extern "C" {
 //template <typename T>//T=AVFrame
 class EncodeThread : public Thread {
 public:
-    EncodeThread(FrameQueue<AVFrame>& frameQueue, AVCodecContext* enc_ctx, std::ofstream& outfile);
+    EncodeThread(FrameQueue<AVFrame>& frameQueue, const std::string& codecName, 
+                 int width, int height, const std::string& outputBase);
     ~EncodeThread();
 
+    void stopEncoding();
+
+protected:
     void run() override;
 
 private:
-    FrameQueue<AVFrame>& m_frameQueue;
-    AVCodecContext* m_enc_ctx;
-    std::ofstream& m_outfile;
-    AVPacket* m_pkt;
-
+    void initCodec(const std::string& codecName);
+    void openNewOutputFile();
+    std::string generateOutputFilename() const;
     void encode(AVFrame* frame);
-};
 
-#endif // ENCODETHREAD_H
+    FrameQueue<AVFrame>& m_frameQueue;
+    AVCodecContext* m_codecCtx;
+    AVPacket* m_pkt;
+    std::ofstream m_outputFile;
+    std::string m_outputBase;
+    int m_width;
+    int m_height;
+    std::chrono::time_point<std::chrono::system_clock> m_lastSplitTime;
+    bool m_running;
+    int m_failCount;
+};

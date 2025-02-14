@@ -1,5 +1,5 @@
 //This is EncodeThread.cpp
-#include "EncodeThread.h"
+#include "include/EncodeThread.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -50,13 +50,25 @@ void EncodeThread::openNewOutputFile() {
     m_lastSplitTime = std::chrono::system_clock::now();
 }
 
+// 指定h264输出路径和文件名
 std::string EncodeThread::generateOutputFilename() const {
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
     std::tm tm = *std::localtime(&time);
-    
+
+    // 路径分割逻辑
+    size_t last_slash = m_outputBase.find_last_of("/\\");
+    std::string dir_part = m_outputBase.substr(0, last_slash);
+    std::string base_part = (last_slash == std::string::npos) ? 
+                            m_outputBase : 
+                            m_outputBase.substr(last_slash + 1);
+
     std::ostringstream oss;
-    oss << m_outputBase << "_" 
+    // 拼接完整路径
+    if (!dir_part.empty()) {
+        oss << dir_part << "/";
+    }
+    oss << base_part << "_" 
         << std::put_time(&tm, "%Y%m%d_%H%M%S") << ".h264";
     return oss.str();
 }
